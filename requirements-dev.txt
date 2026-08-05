@@ -1,0 +1,8 @@
+# Copyright (c) 2026 秦屿泊 (@qinyubo)
+# SPDX-License-Identifier: MIT
+
+-r requirements.txt
+
+pytest==9.1.1
+pytest-cov==7.1.0
+coverage==7.15.2

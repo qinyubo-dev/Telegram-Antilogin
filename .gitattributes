@@ -1,0 +1,11 @@
+# Copyright (c) 2026 秦屿泊 (@qinyubo)
+# SPDX-License-Identifier: MIT
+
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.session binary
+*.zip binary
