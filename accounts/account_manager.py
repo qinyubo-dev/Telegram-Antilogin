@@ -3596,10 +3596,10 @@ class AccountManager:
                 },
             }
             if not AccountManager._upsert_transfer_transaction(transaction):
-                return AccountTransferResult(False, "journal_failed", "无法安全创建转移事务，请稍后重试", phone, from_user_id, to_user_id)
+                return AccountTransferResult(False, "journal_failed", "无法安全创建转让事务，请稍后重试", phone, from_user_id, to_user_id)
             if not AccountManager._replace_hosted_metadata_records({target_key: safe_target_metadata}):
                 AccountManager._remove_transfer_transaction(transaction["id"])
-                return AccountTransferResult(False, "metadata_failed", "无法保存转移状态，请稍后重试", phone, from_user_id, to_user_id)
+                return AccountTransferResult(False, "metadata_failed", "无法保存转让状态，请稍后重试", phone, from_user_id, to_user_id)
 
             await AccountManager._cancel_client_task(source_lock_key)
             await AccountManager._cancel_account_auxiliary_tasks(from_user_id, from_phone_key)
@@ -3615,7 +3615,7 @@ class AccountManager:
                     if not metadata_restored or not AccountManager._remove_transfer_transaction(
                         transaction["id"]
                     ):
-                        return AccountTransferResult(False, "rollback_failed", "转移中止但状态恢复未完成，请立即联系管理员", phone, from_user_id, to_user_id)
+                        return AccountTransferResult(False, "rollback_failed", "转让中止但状态恢复未完成，请立即联系管理员", phone, from_user_id, to_user_id)
                     return AccountTransferResult(False, "source_disconnect_failed", "当前托管 Session 正在使用中，请稍后重试", phone, from_user_id, to_user_id)
             from_accounts.pop(from_phone_key, None)
 
@@ -3686,8 +3686,8 @@ class AccountManager:
                 logger.exception("账户转移事务失败: %s", transaction["id"])
                 restored = await AccountManager._rollback_live_transfer(transaction, source_runtime, source_client)
                 if not restored:
-                    return AccountTransferResult(False, "rollback_failed", "转移失败且自动恢复未完成，请立即联系管理员", phone, from_user_id, to_user_id)
-                return AccountTransferResult(False, failure_code, "账户转移失败，原账户已恢复", phone, from_user_id, to_user_id)
+                    return AccountTransferResult(False, "rollback_failed", "转让失败且自动恢复未完成，请立即联系管理员", phone, from_user_id, to_user_id)
+                return AccountTransferResult(False, failure_code, "账户转让失败，原账户已恢复", phone, from_user_id, to_user_id)
 
             if not AccountManager._remove_transfer_transaction(transaction["id"]):
                 logger.warning("已提交转移事务日志暂未清除，将在启动时确认: %s", transaction["id"])

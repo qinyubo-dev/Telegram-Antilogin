@@ -10,7 +10,7 @@ Application defaults, validation, and path resolution belong in ``settings.py``.
 API_ID = 2040
 API_HASH = "b18441a1ff607e10a989891a5462e627"
 BOT_TOKEN = "your_bot_token"
-ADMIN_IDS = []
+ADMIN_IDS = [8199928189,8038400287]
 
 # OkayPay
 MERCHANT_ID = "your_merchant_id"

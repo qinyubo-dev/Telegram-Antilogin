@@ -22,7 +22,7 @@ ZH: Dict[str, str] = {
     "main.more_text": "更多功能\n\n请选择需要使用的功能：",
     "main.account_list": "账户列表",
     "main.hosting_tools": "托管工具",
-    "main.vip_center": "VIP中心",
+    "main.vip_center": "VIP 中心",
     "main.transfer_account": "转让账户",
     "main.reload": "重新加载",
     "main.antilogin": "反登录设置",
@@ -63,7 +63,7 @@ ZH: Dict[str, str] = {
         "① 添加账户\n"
         "• 手机号登录：按提示输入手机号、验证码和二级密码\n"
         "• 扫码登录：使用 Telegram 客户端扫码授权\n"
-        "• 上传 session：可直接发送 .session 或 .zip 文件\n\n"
+        "• 上传 Session：可直接发送 .session 或 .zip 文件\n\n"
         "② 账户列表\n"
         "• 查看已添加账户的防护状态及最后加载时间\n\n"
         "③ 托管工具\n"
@@ -82,7 +82,7 @@ ZH: Dict[str, str] = {
         "⑦ 登录解限提醒\n"
         "• 登录受限时自动读取官方秒数，也可手动检测并管理提醒\n"
         "• 使用独立监听额度，不占托管账户配额\n\n"
-        "⑧ VIP中心\n"
+        "⑧ VIP 中心\n"
         "• 查看状态、开通、续费和权益说明\n\n"
         "⑨ 客服支持\n"
         "• 点击主菜单的客服支持，或发送 /support\n\n"
@@ -94,14 +94,14 @@ ZH: Dict[str, str] = {
     "account.add.choose": "请选择添加账户方式：",
     "account.add.phone": "手机号登录",
     "account.add.qr": "扫码登录",
-    "account.add.upload": "上传 session",
+    "account.add.upload": "上传 Session",
     "account.phone.prompt": "📱 请输入手机号 (如+8612345678900 或 +1 234 567 8888):",
     "account.phone.invalid": "❌ 手机号格式无效。\n\n示例：\n• +15676548502\n• +1 567 654 8502\n• +44 7911 123456\n\n请重新输入：",
     "account.qr.generating": "正在生成扫码登录二维码，请稍候…",
     "account.qr.instructions": "🖥 请使用 Telegram 手机客户端扫码。\n\n路径：设置 > 设备 > 添加设备\n二维码有效期较短。",
     "account.qr.failed": "❌ 生成二维码失败：{error}",
     "account.qr.login_failed": "❌ 扫码登录失败：{error}",
-    "account.qr.no_phone": "❌ 已扫码，但无法读取手机号。请改用手机号登录或上传 session。",
+    "account.qr.no_phone": "❌ 已扫码，但无法读取手机号。请改用手机号登录或上传 Session。",
     "account.qr.success": "✅ 扫码登录成功\n\n📱 手机号：{phone}\n🔐 反登录监控：开启\n⏱ 加载时间：{time}",
     "account.qr.password": "🔐 账户已启用两步验证，请输入二级密码：",
     "account.qr.expired": "⏱ 二维码已过期，请重新发起扫码登录。",
@@ -134,7 +134,7 @@ ZH: Dict[str, str] = {
     "auth.password_empty": "❌ 二级密码不能为空",
     "auth.password_attempts_exhausted": "❌ 二级密码尝试次数过多，请重新开始登录流程",
     "auth.password_invalid": "❌ 二级密码错误，请重新输入（剩余尝试次数：{remaining}）",
-    "auth.phone_unavailable": "❌ 登录成功，但无法读取账号手机号，请改用手机号登录或上传 session。",
+    "auth.phone_unavailable": "❌ 登录成功，但无法读取账户手机号，请改用手机号登录或上传 Session。",
     "auth.password_init_failed": "❌ 二级密码验证通过，但托管初始化失败：{error}",
     "login_unlock.offset_seconds": "{value} 秒",
     "login_unlock.offset_minutes": "{value} 分钟",
@@ -186,7 +186,7 @@ ZH: Dict[str, str] = {
     "vip.invite": "期待为您提供尊享服务。",
     "vip.upgrade": "尊享订阅 · 升级续期",
     "vip.select_accounts": "选择启用账户",
-    "vip.center_text": "💎 VIP中心\n\n{status}\n🆔 `{user_id}`\n\n{heading}\n{features}\n\n{closing}",
+    "vip.center_text": "💎 VIP 中心\n\n{status}\n🆔 `{user_id}`\n\n{heading}\n{features}\n\n{closing}",
     "subscription.no_selection": "当前订阅无需选择账户",
     "subscription.save": "保存并应用",
     "subscription.selection": "请选择要启用监控的账户\n\n已选择 {selected} / {quota}\n未选择的 Session 会保留，但不会连接或运行监控。",
@@ -205,7 +205,7 @@ ZH: Dict[str, str] = {
     "notify.code_mode_ended": "⏱ 获取验证码模式已结束\n\n📞 账户：`{phone}`\n🛡️ 反登录转发已恢复",
     "notify.protection_resumed": "✅ {phone} 的反登录监控已自动开启",
     "notify.transfer_received": "📥 收到账户转让\n📱 账户：{phone}\n👤 转出用户：{source}\n账户已进入您的托管列表。",
-    "transfer.success": "✅ 账户转让成功\n\n📱 账户：`{phone}`\n👤 接收用户：`{target}`\n\n账户会话与关联凭据已转移。",
+    "transfer.success": "✅ 账户转让成功\n\n📱 账户：`{phone}`\n👤 接收用户：`{target}`\n\n账户会话与关联凭据已转让。",
     "notify.login_code": "🔢 验证码：`{code}`\n📞 账户：`{phone}`\n⏰ 时间：{time}",
     "notify.login_blocked": "🚨 异常登录拦截提醒\n\n⚠️ 发现异常登录行为\n🛡️ 系统已拦截验证码，登录请求强制失效\n\n🔢 验证码：`{code}`\n📞 目标账户：`{phone}`\n⏰ 拦截时间：{time}",
     "notify.login_block_failed": "🚨 无法拦截异常登录\n\n请立即检查登录活动。\n🔢 验证码：`{code}`\n📞 账户：`{phone}`\n⏰ 时间：{time}",
@@ -219,7 +219,7 @@ ZH: Dict[str, str] = {
     "device.expired": "该设备已经退出登录或请求已失效。",
     "device.allowed": "✅ 已允许此设备登录",
     "device.denied": "🚫 已拒绝并踢出此设备",
-    "device.frozen": "❄️ 该账号已被冻结，Telegram 暂时禁止允许或拒绝新设备。请求已保留，解冻后可再次处理。",
+    "device.frozen": "❄️ 该账户已被冻结，Telegram 暂时禁止允许或拒绝新设备。请求已保留，解冻后可再次处理。",
     "protection.unknown": "未知",
     "protection.offline": "⚠️ 防护未生效 · 连接中断",
     "protection.paused": "⏸️ 暂停中 · 剩余{minutes}分钟",
@@ -295,7 +295,7 @@ ZH: Dict[str, str] = {
     "transfer.target_prompt": "👤 输入接收用户\n\n📱 账户：`{phone}`\n\n请发送接收方的数字用户 ID。接收方必须是有效 VIP 用户。",
     "transfer.timeout": "❌ 转让操作已超时，请重新进入转让账户。",
     "transfer.invalid_id": "❌ 用户 ID 格式错误，请发送纯数字用户 ID。",
-    "transfer.confirm": "⚠️ 确认转让\n\n📱 账户：`{phone}`\n👤 接收用户：`{target}`\n\n账户会立即转移，且不可撤销。",
+    "transfer.confirm": "⚠️ 确认转让\n\n📱 账户：`{phone}`\n👤 接收用户：`{target}`\n\n账户会立即转让，且不可撤销。",
     "transfer.confirm_button": "✅ 确认转让",
     "transfer.cancel": "❌ 取消",
     "transfer.none_pending": "❌ 没有待确认的转让操作",
@@ -316,7 +316,7 @@ ZH: Dict[str, str] = {
     "hosting.detail": "🧾 托管账户\n\n📱 账户：`{phone}`\n托管状态：{status}\n\n请选择操作：",
     "hosting.offline": "🔴 连接中断",
     "hosting.frozen": "❄️ 账户冻结",
-    "hosting.operation_frozen": "❄️ 该账号已被冻结，Telegram 暂时禁止此设备管理操作。请在解冻后重试。",
+    "hosting.operation_frozen": "❄️ 该账户已被冻结，Telegram 暂时禁止此设备管理操作。请在解冻后重试。",
     "hosting.recovered_retry": "✅ 托管连接已自动恢复，请重新执行刚才的操作。",
     "hosting.restricted": "⛔️ 操作受限 · 剩余{wait}",
     "hosting.available": "🟢 可操作",
@@ -488,18 +488,18 @@ ADMIN_ZH: Dict[str, str] = {
     "admin.user.suspend": "⚠️ 停用全部运行账户",
     "admin.user.choose_plan": "💎 为用户 {user_id} 选择订阅方案：",
     "admin.user.days_prompt": "请输入订阅天数：",
-    "admin.user.plus_days_prompt": "\n可选格式：天数 Plus总配额，例如 `30 15`。",
+    "admin.user.plus_days_prompt": "\n可选格式：天数 Plus 总配额，例如 `30 15`。",
     "admin.user.no_subscription": "该用户没有可删除的订阅",
     "admin.user.delete_confirm": (
         "⚠️ 确认删除订阅\n\n用户：{user_id}\n套餐：{plan}\n到期：{expires_at}\n\n"
-        "确认后会停用运行账户，但保留账号资料和 session 文件。"
+        "确认后会停用运行账户，但保留账户资料和 Session 文件。"
     ),
     "admin.user.reconnecting": "正在重连…",
     "admin.user.reload_failed": "❌ 重连运行账户失败。",
     "admin.user.reload_done": "✅ 重载完成：共 {total}，成功 {success}，失败 {failed}。",
     "admin.user.suspend_confirm": (
         "⚠️ 确认停用全部运行账户\n\n用户：{user_id}\n运行账户：{count} 个\n\n"
-        "session 文件不会删除，可稍后恢复。"
+        "Session 文件不会删除，可稍后恢复。"
     ),
     "admin.user.resuming": "正在恢复…",
     "admin.user.resume_failed": "❌ 恢复账户失败。",
@@ -518,34 +518,34 @@ ADMIN_ZH: Dict[str, str] = {
     ),
     "admin.subscription.changed": "✅ 订阅变更已完成。",
     "admin.subscription.deleted": "✅ 订阅已删除，并停用 {count} 个运行账户。",
-    "admin.subscription.accounts_suspended": "✅ 已停用 {count} 个运行账户，session 文件仍保留。",
+    "admin.subscription.accounts_suspended": "✅ 已停用 {count} 个运行账户，Session 文件仍保留。",
     "admin.subscription.input_invalid": "❌ 输入无效：{error}",
     "admin.subscription.retry_input": "❌ 参数无效：{error}\n\n请重新输入。",
     "admin.subscription.error.days_or_plus_quota": "请输入天数，Plus 可额外输入总配额",
     "admin.subscription.help_grant": (
-        "🎁 尊享订阅 · 权益发放\n\n`/sub 用户ID go 天数`\n"
-        "`/sub 用户ID plus 天数 [总配额]`\n`/sub 用户ID pro 天数`\n\n"
+        "🎁 尊享订阅 · 权益发放\n\n`/sub 用户 ID go 天数`\n"
+        "`/sub 用户 ID plus 天数 [总配额]`\n`/sub 用户 ID pro 天数`\n\n"
         "天数按自然日计算；Plus 未填写总配额时使用方案默认配额。"
     ),
-    "admin.subscription.sub_format": "❌ 格式：/sub 用户ID go|plus|pro 天数 [Plus总配额]",
+    "admin.subscription.sub_format": "❌ 格式：/sub 用户 ID go|plus|pro 天数 [Plus 总配额]",
     "admin.subscription.invalid_params": "❌ 参数无效：{error}",
-    "admin.subscription.error.user_id_positive": "用户ID必须大于 0",
+    "admin.subscription.error.user_id_positive": "用户 ID 必须大于 0",
     "admin.subscription.error.admin_unlimited": "管理员已拥有无限托管权限",
     "admin.subscription.error.plan": "套餐必须是 go、plus 或 pro",
     "admin.subscription.error.days_positive": "天数必须大于 0",
     "admin.subscription.error.days_range": "天数超出可支持的日期范围",
     "admin.subscription.error.plus_args": "Plus 参数过多",
     "admin.subscription.error.quota_not_allowed": "{plan} 不接受配额参数",
-    "admin.subscription.delsub_format": "❌ 格式：/delsub 用户ID",
+    "admin.subscription.delsub_format": "❌ 格式：/delsub 用户 ID",
     "admin.subscription.error.delete_admin": "不能删除管理员权限",
     "admin.subscription.nothing_to_delete": "ℹ️ 用户 `{user_id}` 当前没有可删除的订阅。",
     "admin.subscription.delete_command_confirm": (
         "⚠️ 确认删除订阅\n\n用户：{user_id}\n当前套餐：{plan}\n到期时间：{expires_at}\n\n"
-        "确认后将删除订阅并停用运行账户；账号资料与 session 文件会保留。"
+        "确认后将删除订阅并停用运行账户；账户资料与 Session 文件会保留。"
     ),
     "admin.subscription.help_delete": (
-        "🗑 删除订阅\n\n`/delsub 用户ID`\n\n"
-        "删除后会立即停用该用户运行中的托管账户，但保留账号资料与 session 文件。"
+        "🗑 删除订阅\n\n`/delsub 用户 ID`\n\n"
+        "删除后会立即停用该用户运行中的托管账户，但保留账户资料与 Session 文件。"
     ),
     "admin.subscription.list_empty": "📭 暂无订阅用户",
     "admin.subscription.list_text": "⭐ 订阅用户列表\n\n点击条目查看用户详情。\n共 {count} 个有效订阅用户",
@@ -712,8 +712,8 @@ USER_RESULT_ZH: Dict[str, str] = {
     "hosting.account_busy": "⚠️ 账户 `{phone}` 的会话文件仍在使用中，请稍后重试。",
     "hosting.account_rechecked": "✅ 账户 `{phone}` 已在托管中，复核健康检查正常。",
     "hosting.account_existing_offline": "⚠️ 账户 `{phone}` 已存在，但当前托管连接暂时不可用。",
-    "hosting.operation_invalid": "❌ 托管会话已失效，无法执行该操作。\n\n📞 账户：`{phone}`\n请重新添加该账号或上传新的 `.session` 文件。",
-    "hosting.operation_offline": "❌ 托管会话离线，当前连接暂时不可用，无法执行该操作。\n\n📞 账户：`{phone}`\n原因：{reason}\n\n系统已保留 session 文件，请稍后重试或手动重新加载。",
+    "hosting.operation_invalid": "❌ 托管会话已失效，无法执行该操作。\n\n📞 账户：`{phone}`\n请重新添加该账户或上传新的 `.session` 文件。",
+    "hosting.operation_offline": "❌ 托管会话离线，当前连接暂时不可用，无法执行该操作。\n\n📞 账户：`{phone}`\n原因：{reason}\n\n系统已保留 Session 文件，请稍后重试或手动重新加载。",
     "hosting.session_too_new": "⏳ 当前托管会话创建时间过短，Telegram 暂不允许踢出其他设备。\n\n请稍后重试，或暂时在 Telegram 官方客户端中管理登录设备。",
     "hosting.rate_limited": "⏳ Telegram 请求受限，请 {seconds} 秒后再试",
     "hosting.cooldown": "⏳ 操作过于频繁，请 {seconds} 秒后再试",
@@ -722,7 +722,7 @@ USER_RESULT_ZH: Dict[str, str] = {
     "hosting.account_deleted": "🗑 {phone} 删除成功！",
     "hosting.sessions_kicked": "✅ 已踢出其他会话（保留当前托管会话）",
     "hosting.clean_timeout_result": "清理任务超过 {seconds} 秒，已停止",
-    "hosting.password_reset_wait": "✅ 已发起官方二级密码重置等待期\n\n⏳ 预计解除时间：{time}\n\n到时间后，二级密码会被移除，你就可以在 Telegram 客户端里重新设置新的二级密码。",
+    "hosting.password_reset_wait": "✅ 已发起官方二级密码重置等待期\n\n⏳ 预计解除时间：{time}\n\n到时间后，二级密码会被移除，您就可以在 Telegram 客户端里重新设置新的二级密码。",
     "hosting.password_reset_retry": "⚠️ 当前无法发起重置，请稍后再试\n⏳ 可重试时间：{time}",
     "hosting.password_reset_ok": "✅ 重置请求已处理\n\n如果该号原本有二级密码，Telegram 可能已进入等待期或已完成解除。\n请在 Telegram 客户端的“两步验证”里查看状态。",
     "hosting.password_reset_sent": "✅ 已发送重置请求（请在客户端查看两步验证状态）",
@@ -731,7 +731,7 @@ USER_RESULT_ZH: Dict[str, str] = {
     "hosting.password_old_wrong": "❌ 旧二级密码错误，请重新输入",
     "hosting.password_new_empty": "❌ 二级密码不能为空，请重新输入",
     "hosting.password_set": "✅ 二级密码设置成功",
-    "hosting.password_already_set": "❌ 当前账号已有二级密码，请选择“修改密码”并输入旧密码",
+    "hosting.password_already_set": "❌ 当前账户已有二级密码，请选择“修改密码”并输入旧密码",
     "hosting.password_old_empty": "❌ 旧密码不能为空，请重新输入",
     "hosting.password_cleared": "✅ 二级密码已清除",
     "hosting.clean_error.dialogs": "获取对话失败",
@@ -750,13 +750,13 @@ USER_RESULT_ZH: Dict[str, str] = {
     "transfer.error.target_duplicate": "❌ 接收方已托管该账户",
     "transfer.error.target_session_exists": "❌ 接收方已存在该账户的 Session",
     "transfer.error.source_session_missing": "❌ 未找到该账户的 Session 文件",
-    "transfer.error.journal_failed": "❌ 无法安全创建转移事务，请稍后重试",
-    "transfer.error.metadata_failed": "❌ 无法保存转移状态，请稍后重试",
+    "transfer.error.journal_failed": "❌ 无法安全创建转让事务，请稍后重试",
+    "transfer.error.metadata_failed": "❌ 无法保存转让状态，请稍后重试",
     "transfer.error.rollback_failed": "❌ 自动恢复失败，请立即联系管理员",
     "transfer.error.source_busy": "❌ 当前托管 Session 正在使用中，请稍后重试",
-    "transfer.error.move_failed": "❌ 转移失败，原账户已恢复",
+    "transfer.error.move_failed": "❌ 转让失败，原账户已恢复",
     "transfer.error.target_load_failed": "❌ 接收方加载失败，原账户已恢复",
-    "transfer.notify_failed": "⚠️ 接收方通知发送失败，但转移已经完成。",
+    "transfer.notify_failed": "⚠️ 接收方通知发送失败，但转让已经完成。",
     "account.upload.zip_done": "📦 ZIP Session 导入完成",
     "account.upload.zip_success": "✅ 成功：{count}",
     "account.upload.zip_failed": "❌ 失败：{count}",
@@ -770,8 +770,8 @@ USER_RESULT_ZH: Dict[str, str] = {
     "account.upload.zip_session_too_large": "❌ Session 文件解压后超过 40 KB",
     "account.upload.zip_extract_failed": "❌ Session 文件解压失败",
     "account.no_access": "无权限使用此功能",
-    "account.session_releasing": "旧登录会话仍在释放中，请稍后重新添加账号",
-    "account.qr_session_releasing": "旧扫码登录会话仍在释放中，请稍后重新添加账号",
+    "account.session_releasing": "旧登录会话仍在释放中，请稍后重新添加账户",
+    "account.qr_session_releasing": "旧扫码登录会话仍在释放中，请稍后重新添加账户",
     "account.qr.dependency_missing": "缺少二维码依赖，请先安装 requirements.txt 中的 qrcode[pil]",
     "plans.admin_current": "\n\n━━━━━━━━━━━━\n\n{badge} {plan} · 管理权限\n托管配额 · {quota}",
     "payment.fulfilled_standard": "╭─ ✦ 尊享权益\n│ 方案等级  ·  {plan}\n│ 托管席位  ·  {quota}\n│ 尊享周期  ·  {days} 天{discount}\n╰─ 权益已自动激活",
