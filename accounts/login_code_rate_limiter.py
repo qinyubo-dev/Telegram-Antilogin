@@ -130,11 +130,11 @@ class LoginCodeRequestRateLimiter:
 
 
 def render_login_code_rate_limit(
-    result: LoginCodeRateLimitResult, language: str
+    result: LoginCodeRateLimitResult
 ) -> str:
     if result.reason == "storage":
         return LoginCodeRateLimitMessage(
-            t(language, "auth.login_code_rate_storage_failed")
+            t("auth.login_code_rate_storage_failed")
         )
     window_key = (
         "auth.login_code_rate_window_minutes"
@@ -146,17 +146,13 @@ def render_login_code_rate_limit(
         if result.window_seconds % 60 == 0
         else result.window_seconds
     )
-    rule = t(
-        language,
-        "auth.login_code_rate_rule",
+    rule = t("auth.login_code_rate_rule",
         interval=result.min_interval_seconds,
-        window=t(language, window_key, value=window_value),
+        window=t(window_key, value=window_value),
         max_requests=result.max_requests,
     )
     return LoginCodeRateLimitMessage(
-        t(
-            language,
-            (
+        t((
                 "auth.login_code_rate_window_exceeded"
                 if result.reason == "window"
                 else "auth.login_code_rate_interval_exceeded"

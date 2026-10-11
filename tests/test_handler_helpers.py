@@ -45,7 +45,7 @@ def test_state_clear_partial_and_back_button_language():
     handler_utils.clear_state(7, "two")
     assert handler_utils.get_state(7) == {}
     handler_utils.clear_state(99, "missing")
-    assert handler_utils.back_to_main_buttons(language="en")[0][0].data == b"back_to_main"
+    assert handler_utils.back_to_main_buttons()[0][0].data == b"back_to_main"
 
 
 def test_safe_answer_success_and_expired_query(event_factory):
@@ -216,7 +216,7 @@ def test_hosting_cleanup_result_renders_counts_errors_and_local_file():
 
 
 def test_bot_menu_helpers_admin_and_user_layout():
-    with patch("handlers.bot_handlers.DataManager.get_user_language", return_value="en"), patch(
+    with patch(
         "handlers.bot_handlers.DataManager.is_admin", return_value=False
     ):
         regular = bot_handlers.main_menu_buttons(1)
@@ -236,18 +236,17 @@ def test_bot_menu_helpers_admin_and_user_layout():
     assert {
         b"reload_user_accounts", b"customer_support", b"show_help"
     }.isdisjoint(regular_data)
-    with patch("handlers.bot_handlers.DataManager.get_user_language", return_value="en"):
-        more = bot_handlers.more_menu_buttons(1)
+    more = bot_handlers.more_menu_buttons(1)
     assert len(more) == 3
     assert {
         b"reload_user_accounts", b"customer_support", b"show_help"
     } == {button.data for row in more[:-1] for button in row}
-    with patch("handlers.bot_handlers.DataManager.get_user_language", return_value="zh"), patch(
+    with patch(
         "handlers.bot_handlers.DataManager.is_admin", return_value=True
     ):
         admin = bot_handlers.main_menu_buttons(1)
     assert len(admin) == 5 and admin[-1][0].data == b"admin_panel"
-    markup = bot_handlers.support_profile_markup("input", include_back=True, language="en")
+    markup = bot_handlers.support_profile_markup("input", include_back=True)
     assert len(markup.rows) == 2
     assert len(bot_handlers.support_profile_markup("input", include_back=False).rows) == 1
 
@@ -257,12 +256,12 @@ def test_bot_quota_and_menu_text_helpers():
         "handlers.bot_handlers.AccountManager.get_quota_status",
         return_value={"used": 3, "quota": None},
     ):
-        assert "3" in bot_handlers.hosting_quota_status_text(1, "en")
+        assert "3" in bot_handlers.hosting_quota_status_text(1)
     with patch(
         "handlers.bot_handlers.AccountManager.get_quota_status",
         return_value={"used": 1, "quota": 2},
     ):
-        assert "1" in bot_handlers.hosting_quota_status_text(1, "zh")
+        assert "1" in bot_handlers.hosting_quota_status_text(1)
     assert "Alice" in bot_handlers.main_menu_text("Alice", 7, "1 / 2", 1)
 
 

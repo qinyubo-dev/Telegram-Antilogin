@@ -15,10 +15,9 @@ from handlers import login_unlock_handlers
 from reminders.login_unlock_reminder import (
     LoginUnlockReminderSystem,
     ReminderScheduleValidationError,
-    beijing_text,
     parse_schedule_offsets,
 )
-from user_timezones import timezone_text
+from china_time import timezone_text
 from storage import data_manager as dm
 from storage.data_manager import DataManager
 
@@ -122,7 +121,7 @@ def test_schedule_uses_official_seconds_beijing_time_and_independent_quota(remin
     assert result.status == "scheduled"
     assert result.unlock_at == now + timedelta(seconds=600)
     assert result.reminder_times == (now + timedelta(seconds=480),)
-    assert beijing_text(result.unlock_at) == "2026-08-02 12:10:00"
+    assert timezone_text(result.unlock_at) == "2026-08-02 12:10:00"
     assert result.used == 1 and result.limit == 3
 
     updated = run(system.schedule(1, "+86 138 0000 0001", 900, now=now))
@@ -238,7 +237,7 @@ def test_automatic_authentication_schedules_flood_wait(reminder_storage):
 def test_main_menu_login_unlock_button_uses_requested_icon():
     from handlers.bot_handlers import main_menu_buttons
 
-    with patch("handlers.bot_handlers.DataManager.get_user_language", return_value="zh"), patch(
+    with patch(
         "handlers.bot_handlers.DataManager.is_admin", return_value=False
     ):
         buttons = [button for row in main_menu_buttons(1) for button in row]
@@ -362,7 +361,7 @@ def test_admin_reminder_button_names_and_unlock_child_has_no_icon(
 
     from localization import t
 
-    assert t("zh", "admin.panel.reminders") == "提醒设置"
+    assert t("admin.panel.reminders") == "提醒设置"
 
 
 def test_manual_handler_probes_phone_and_does_not_continue_login(

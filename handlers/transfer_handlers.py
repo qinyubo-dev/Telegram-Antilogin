@@ -22,7 +22,6 @@ from handlers.handler_utils import (
     safe_edit,
     set_state,
 )
-from storage.data_manager import DataManager
 from localization import localized_result, t
 
 
@@ -41,22 +40,20 @@ def clear_account_transfer_state(user_id: int) -> None:
     clear_state(user_id, *TRANSFER_STATE_KEYS)
 
 
-def _remaining_text(seconds: int, language="zh") -> str:
+def _remaining_text(seconds: int) -> str:
     total_minutes = math.ceil(max(0, int(seconds)) / 60)
     hours, minutes = divmod(total_minutes, 60)
     if hours and minutes:
-        return t(language, "transfer.remaining_hours_minutes", hours=hours, minutes=minutes)
+        return t("transfer.remaining_hours_minutes", hours=hours, minutes=minutes)
     if hours:
-        return t(language, "transfer.remaining_hours", hours=hours)
-    return t(language, "transfer.remaining_minutes", minutes=minutes)
+        return t("transfer.remaining_hours", hours=hours)
+    return t("transfer.remaining_minutes", minutes=minutes)
 
 
-def _transfer_result_text(result, language="zh") -> str:
+def _transfer_result_text(result) -> str:
     message_key = getattr(result, "message_key", "")
     if message_key:
-        return t(
-            language,
-            message_key,
+        return t(message_key,
             **getattr(result, "message_values", {}),
         )
     keys = {
@@ -79,15 +76,13 @@ def _transfer_result_text(result, language="zh") -> str:
         "target_load_failed": "transfer.error.target_load_failed",
     }
     key = keys.get(getattr(result, "code", ""))
-    return t(language, key) if key else localized_result(
-        language, getattr(result, "message", "")
+    return t(key) if key else localized_result(getattr(result, "message", "")
     )
 
 
 async def setup_transfer_handlers(bot: TelegramClient):
     async def render_transfer_accounts(event, page: int = 0):
         user_id = event.sender_id
-        language = DataManager.get_user_language(user_id)
         current_message = (
             await event.get_message() if hasattr(event, "get_message") else None
         )
@@ -97,15 +92,15 @@ async def setup_transfer_handlers(bot: TelegramClient):
         clear_account_transfer_state(user_id)
 
         if not AccountManager.check_access(user_id):
-            await event.answer(t(language, "common.no_access"), alert=True)
+            await event.answer(t("common.no_access"), alert=True)
             return
 
         accounts = user_accounts.get(user_id, {})
         if not accounts:
             await event.answer()
             await safe_edit(event,
-                t(language, "accounts.empty"),
-                buttons=[[back_button(b"back_to_main", language=language)]],
+                t("accounts.empty"),
+                buttons=[[back_button(b"back_to_main")]],
             )
             return
 
@@ -120,7 +115,7 @@ async def setup_transfer_handlers(bot: TelegramClient):
                     user_id, phone
                 )
                 if remaining:
-                    label = f"📱 {display_phone} ｜ ⛔️ {t(language, 'transfer.locked', remaining=_remaining_text(remaining, language))}"
+                    label = f"📱 {display_phone} ｜ ⛔️ {t('transfer.locked', remaining=_remaining_text(remaining))}"
                 else:
                     label = f"📱 {display_phone} ｜ ✅"
             digits = re.sub(r"\D", "", phone)
@@ -131,16 +126,16 @@ async def setup_transfer_handlers(bot: TelegramClient):
         if max_page > 0:
             nav = []
             if page > 0:
-                nav.append(Button.inline(t(language, "common.previous"), f"account_transfer_accounts_{page - 1}".encode()))
+                nav.append(Button.inline(t("common.previous"), f"account_transfer_accounts_{page - 1}".encode()))
             nav.append(Button.inline(f"{page + 1}/{max_page + 1}", f"account_transfer_accounts_{page}".encode()))
             if page < max_page:
-                nav.append(Button.inline(t(language, "common.next"), f"account_transfer_accounts_{page + 1}".encode()))
+                nav.append(Button.inline(t("common.next"), f"account_transfer_accounts_{page + 1}".encode()))
             buttons.append(nav)
-        buttons.append([back_button(b"back_to_main", language=language)])
+        buttons.append([back_button(b"back_to_main")])
 
         await event.answer()
         await safe_edit(event,
-            t(language, "transfer.page"),
+            t("transfer.page"),
             buttons=buttons,
         )
 
@@ -154,9 +149,8 @@ async def setup_transfer_handlers(bot: TelegramClient):
     @bot.on(events.CallbackQuery(pattern=rb"account_transfer_select_\d+$"))
     async def transfer_select(event):
         user_id = event.sender_id
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            await event.answer(t(language, "common.no_access"), alert=True)
+            await event.answer(t("common.no_access"), alert=True)
             return
 
         match = re.fullmatch(
@@ -168,17 +162,17 @@ async def setup_transfer_handlers(bot: TelegramClient):
             return
         phone = "+" + match.group(1)
         if phone not in user_accounts.get(user_id, {}):
-            await event.answer(t(language, "transfer.not_owned"), alert=True)
+            await event.answer(t("transfer.not_owned"), alert=True)
             return
 
         if AccountManager.is_uploaded_transfer_locked(user_id, phone):
-            await event.answer(t(language, "transfer.upload_locked"), alert=True)
+            await event.answer(t("transfer.upload_locked"), alert=True)
             return
 
         remaining = AccountManager.get_account_transfer_remaining_seconds(user_id, phone)
         if remaining:
             await event.answer(
-                t(language, "transfer.wait", remaining=_remaining_text(remaining, language)),
+                t("transfer.wait", remaining=_remaining_text(remaining)),
                 alert=True,
             )
             return
@@ -191,15 +185,14 @@ async def setup_transfer_handlers(bot: TelegramClient):
         )
         await event.answer()
         await safe_edit(event,
-            t(language, "transfer.target_prompt", phone=phone),
-            buttons=[[back_button(b"account_transfer_accounts", language=language)]],
+            t("transfer.target_prompt", phone=phone),
+            buttons=[[back_button(b"account_transfer_accounts")]],
             parse_mode="md",
         )
 
     @bot.on(events.NewMessage)
     async def transfer_target_input(event):
         user_id = event.sender_id
-        language = DataManager.get_user_language(user_id)
         state = get_state(user_id)
         if not state.get("waiting_account_transfer_target"):
             return
@@ -212,12 +205,12 @@ async def setup_transfer_handlers(bot: TelegramClient):
         if not created_at or time.time() - created_at > TRANSFER_STATE_TTL_SECONDS:
             clear_account_transfer_state(user_id)
             forget_flow_message(user_id)
-            await event.respond(t(language, "transfer.timeout"))
+            await event.respond(t("transfer.timeout"))
             return
 
         text = (event.text or "").strip()
         if not re.fullmatch(r"\d+", text):
-            retry_message = await event.respond(t(language, "transfer.invalid_id"))
+            retry_message = await event.respond(t("transfer.invalid_id"))
             remember_flow_message(user_id, retry_message)
             return
         to_user_id = int(text)
@@ -227,7 +220,7 @@ async def setup_transfer_handlers(bot: TelegramClient):
         )
         if not validation.ok:
             retry_message = await event.respond(
-                _transfer_result_text(validation, language)
+                _transfer_result_text(validation)
             )
             remember_flow_message(user_id, retry_message)
             return
@@ -240,10 +233,10 @@ async def setup_transfer_handlers(bot: TelegramClient):
             account_transfer_created_at=time.time(),
         )
         confirmation_message = await event.respond(
-            t(language, "transfer.confirm", phone=validation.phone, target=to_user_id),
+            t("transfer.confirm", phone=validation.phone, target=to_user_id),
             buttons=[[
-                Button.inline(t(language, "transfer.confirm_button"), b"account_transfer_confirm"),
-                Button.inline(t(language, "transfer.cancel"), b"account_transfer_cancel"),
+                Button.inline(t("transfer.confirm_button"), b"account_transfer_confirm"),
+                Button.inline(t("transfer.cancel"), b"account_transfer_cancel"),
             ]],
             parse_mode="md",
         )
@@ -252,20 +245,19 @@ async def setup_transfer_handlers(bot: TelegramClient):
     @bot.on(events.CallbackQuery(pattern=b"account_transfer_confirm"))
     async def transfer_confirm(event):
         user_id = event.sender_id
-        language = DataManager.get_user_language(user_id)
         state = get_state(user_id)
         if not state.get("account_transfer_pending"):
-            await event.answer(t(language, "transfer.none_pending"), alert=True)
+            await event.answer(t("transfer.none_pending"), alert=True)
             return
 
         created_at = float(state.get("account_transfer_created_at", 0) or 0)
         if not created_at or time.time() - created_at > TRANSFER_STATE_TTL_SECONDS:
             clear_account_transfer_state(user_id)
             forget_flow_message(user_id)
-            await event.answer(t(language, "transfer.timeout"), alert=True)
+            await event.answer(t("transfer.timeout"), alert=True)
             await safe_edit(event,
-                t(language, "transfer.timeout"),
-                buttons=[[back_button(b"account_transfer_accounts", language=language)]],
+                t("transfer.timeout"),
+                buttons=[[back_button(b"account_transfer_accounts")]],
             )
             return
 
@@ -273,14 +265,14 @@ async def setup_transfer_handlers(bot: TelegramClient):
         to_user_id = int(state.get("account_transfer_to_user_id", 0) or 0)
         clear_account_transfer_state(user_id)
         forget_flow_message(user_id)
-        await event.answer(t(language, "transfer.in_progress"))
+        await event.answer(t("transfer.in_progress"))
 
         result = await AccountManager.transfer_account(user_id, phone, to_user_id)
         if result.ok:
             await delete_remembered_start_command(user_id)
         await safe_edit(event,
-            _transfer_result_text(result, language),
-            buttons=None if result.ok else [[back_button(b"back_to_main", language=language)]],
+            _transfer_result_text(result),
+            buttons=None if result.ok else [[back_button(b"back_to_main")]],
             parse_mode="md",
         )
 

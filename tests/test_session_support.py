@@ -228,25 +228,6 @@ def test_render_zip_import_summary_groups_success_failures_and_quota():
     assert text.index("+100") < text.index("bad") < text.index("later")
 
 
-def test_runtime_cancel_task_handles_missing_done_and_running_tasks():
-    async def exercise():
-        runtime = account_runtime.AccountRuntime()
-        await runtime.cancel_task(runtime.client_tasks, "missing")
-
-        done = asyncio.create_task(asyncio.sleep(0))
-        await done
-        runtime.client_tasks["done"] = done
-        await runtime.cancel_task(runtime.client_tasks, "done")
-        assert runtime.client_tasks == {}
-
-        running = asyncio.create_task(asyncio.sleep(60))
-        runtime.client_tasks["running"] = running
-        await runtime.cancel_task(runtime.client_tasks, "running")
-        assert running.cancelled()
-
-    asyncio.run(exercise())
-
-
 def test_runtime_fatal_classification_and_raise_preserves_original():
     original = AccessTokenInvalidError(request=None)
     assert account_runtime.is_notify_bot_fatal_error(original)

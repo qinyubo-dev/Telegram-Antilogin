@@ -13,7 +13,6 @@ import sqlite3
 import tempfile
 import threading
 import uuid
-import zlib
 import copy
 from contextlib import AsyncExitStack
 from typing import Dict, List, Optional
@@ -134,15 +133,6 @@ NEW_DEVICE_ACTION_RETRY_DELAYS = (1, 2)
 # 修改手机号正则表达式，支持带空格的格式
 PHONE_REGEX = re.compile(r'^\+\d{1,4}[\s\d]{5,15}$')
 
-def transfer_recipient_created_at(
-    source_created_at: Optional[float], now: Optional[float] = None
-) -> float:
-    """Preserve the account's real creation time when ownership changes."""
-    if source_created_at is not None:
-        return float(source_created_at)
-    return float(time.time() if now is None else now)
-
-
 class AccountManager:
     """账户管理类"""
     PHONE_REGEX = PHONE_REGEX
@@ -221,14 +211,11 @@ class AccountManager:
     @staticmethod
     def quota_error_message(user_id: int) -> str:
         status = AccountManager.get_quota_status(user_id)
-        language = DataManager.get_user_language(user_id)
         quota = (
-            t(language, "plans.quota_unlimited")
+            t("plans.quota_unlimited")
             if status['quota'] is None else status['quota']
         )
-        return t(
-            language,
-            "hosting.quota_full",
+        return t("hosting.quota_full",
             used=status['used'],
             quota=quota,
         )
@@ -852,20 +839,19 @@ class AccountManager:
 
     @staticmethod
     def hosting_clean_age_message(
-        remaining_seconds: int, language: str = "zh"
+        remaining_seconds: int
     ) -> str:
         remaining_seconds = max(1, int(remaining_seconds))
         if remaining_seconds < 60:
-            wait_text = t(language, "hosting.wait_seconds", seconds=remaining_seconds)
+            wait_text = t("hosting.wait_seconds", seconds=remaining_seconds)
         else:
             total_minutes = math.ceil(remaining_seconds / 60)
             hours, minutes = divmod(total_minutes, 60)
-            wait_text = t(language, "hosting.wait_hours", hours=hours) if hours else ""
+            wait_text = t("hosting.wait_hours", hours=hours) if hours else ""
             if minutes:
-                wait_text += (" " if wait_text else "") + t(
-                    language, "hosting.wait_minutes", minutes=minutes
+                wait_text += (" " if wait_text else "") + t("hosting.wait_minutes", minutes=minutes
                 )
-        return t(language, "hosting.clean_age", wait=wait_text)
+        return t("hosting.clean_age", wait=wait_text)
 
     @staticmethod
     def is_uploaded_transfer_locked(user_id: int, phone: str) -> bool:
@@ -1435,17 +1421,14 @@ class AccountManager:
             logger.info(f"通知机器人未绑定，跳过会话不可用通知: 用户ID={user_id}, 手机号={phone}")
             return
 
-        language = DataManager.get_user_language(user_id)
         source_key = {
             "startup": "notify.session_source.startup",
             "manual_reload": "notify.session_source.manual_reload",
         }.get(source, "notify.session_source.connection")
 
         display_phone = AccountManager.format_phone_display(phone or "unknown")
-        msg = t(
-            language,
-            "notify.session_unavailable",
-            source=t(language, source_key),
+        msg = t("notify.session_unavailable",
+            source=t(source_key),
             phone=display_phone,
         )
 
@@ -1577,16 +1560,15 @@ class AccountManager:
     @staticmethod
     def get_hosting_status_text(user_id: int, phone: str, acc_info: Dict) -> str:
         """返回托管工具使用的账户状态，24 小时内统一标记为操作受限。"""
-        language = DataManager.get_user_language(user_id)
         if not acc_info or not AccountManager.is_account_online(acc_info):
-            return t(language, "hosting.offline")
+            return t("hosting.offline")
 
         health_status = acc_info.get("health_status")
         client = acc_info.get("client")
         if not health_status and client:
             health_status = getattr(client, "_last_health_status", None)
         if health_status == "frozen" or acc_info.get("freeze_info"):
-            return t(language, "hosting.frozen")
+            return t("hosting.frozen")
 
         created_at = acc_info.get("created_at")
         if created_at is None:
@@ -1597,12 +1579,12 @@ class AccountManager:
             total_minutes = max(1, math.ceil(remaining / 60))
             hours, minutes = divmod(total_minutes, 60)
             if hours:
-                wait_text = t(language, "transfer.remaining_hours", hours=hours)
+                wait_text = t("transfer.remaining_hours", hours=hours)
             else:
-                wait_text = t(language, "transfer.remaining_minutes", minutes=minutes)
-            return t(language, "hosting.restricted", wait=wait_text)
+                wait_text = t("transfer.remaining_minutes", minutes=minutes)
+            return t("hosting.restricted", wait=wait_text)
 
-        return t(language, "hosting.available")
+        return t("hosting.available")
 
     @staticmethod
     def get_compact_hosting_status_text(user_id: int, phone: str, acc_info: Dict) -> str:
@@ -1627,7 +1609,6 @@ class AccountManager:
         accounts = AccountManager.get_user_accounts(user_id)
         acc_info = accounts.get(normalized_phone)
         display_phone = AccountManager.format_phone_display(normalized_phone)
-        language = DataManager.get_user_language(user_id)
 
         if not acc_info:
             return ExistingAccountCheck(action="allow", phone=normalized_phone, message="")
@@ -1650,7 +1631,7 @@ class AccountManager:
                     phone=normalized_phone,
                     status=status,
                     reason=reason,
-                    message=t(language, "hosting.account_healthy", phone=display_phone),
+                    message=t("hosting.account_healthy", phone=display_phone),
                 )
 
             if AccountManager._is_fatal_session_status(status):
@@ -1686,7 +1667,7 @@ class AccountManager:
                     phone=normalized_phone,
                     status="busy",
                     reason="disconnect_failed",
-                    message=t(language, "hosting.account_busy", phone=display_phone),
+                    message=t("hosting.account_busy", phone=display_phone),
                 )
 
             session_path = acc_info.get("original_session_path")
@@ -1724,7 +1705,7 @@ class AccountManager:
                     phone=normalized_phone,
                     status=confirm_status,
                     reason=confirm_reason,
-                    message=t(language, "hosting.account_rechecked", phone=display_phone),
+                    message=t("hosting.account_rechecked", phone=display_phone),
                 )
 
             if AccountManager._is_fatal_session_status(confirm_status):
@@ -1771,9 +1752,7 @@ class AccountManager:
             phone=normalized_phone,
             status="offline",
             reason=reason,
-            message=t(
-                language,
-                "hosting.account_existing_offline",
+            message=t("hosting.account_existing_offline",
                 phone=display_phone,
             ),
         )
@@ -1791,20 +1770,17 @@ class AccountManager:
     def ensure_account_operable(user_id: int, phone: str, allow_delete: bool = False):
         """为账户操作返回 (ok, accounts, normalized_phone, acc_info, message)。"""
         normalized_phone = AccountManager.normalize_phone(phone)
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            return False, {}, normalized_phone, None, t(language, "hosting.no_access")
+            return False, {}, normalized_phone, None, t("hosting.no_access")
 
         accounts = AccountManager.get_user_accounts(user_id)
         acc_info = accounts.get(normalized_phone)
         if not acc_info:
-            return False, accounts, normalized_phone, None, t(language, "protection.no_account")
+            return False, accounts, normalized_phone, None, t("protection.no_account")
 
         if not allow_delete and not AccountManager.is_account_online(acc_info):
             reason = acc_info.get("offline_reason") or "unknown"
-            return False, accounts, normalized_phone, acc_info, t(
-                language,
-                "hosting.operation_offline",
+            return False, accounts, normalized_phone, acc_info, t("hosting.operation_offline",
                 phone=AccountManager.format_phone_display(normalized_phone),
                 reason=reason,
             )
@@ -1813,20 +1789,16 @@ class AccountManager:
         return True, accounts, normalized_phone, acc_info, ""
 
     @staticmethod
-    def _hosted_operation_invalid_message(phone: str, language: str = "zh") -> str:
-        return t(
-            language,
-            "hosting.operation_invalid",
+    def _hosted_operation_invalid_message(phone: str) -> str:
+        return t("hosting.operation_invalid",
             phone=AccountManager.format_phone_display(phone),
         )
 
     @staticmethod
     def _hosted_operation_offline_message(
-        phone: str, reason: str = "error", language: str = "zh"
+        phone: str, reason: str = "error"
     ) -> str:
-        return t(
-            language,
-            "hosting.operation_offline",
+        return t("hosting.operation_offline",
             phone=AccountManager.format_phone_display(phone),
             reason=reason or "unknown",
         )
@@ -1834,7 +1806,6 @@ class AccountManager:
     @staticmethod
     async def ensure_hosted_client_ready(user_id: int, phone: str, action: str):
         """敏感托管操作前返回 (ok, accounts, normalized_phone, acc_info, client, message)。"""
-        language = DataManager.get_user_language(user_id)
         ok, accounts, normalized_phone, acc_info, message = AccountManager.ensure_account_operable(user_id, phone)
         if not ok:
             return False, accounts, normalized_phone, acc_info, None, message
@@ -1853,7 +1824,7 @@ class AccountManager:
                 acc_info,
                 None,
                 AccountManager._hosted_operation_offline_message(
-                    normalized_phone, "missing_client", language
+                    normalized_phone, "missing_client"
                 ),
             )
 
@@ -1890,7 +1861,7 @@ class AccountManager:
                 acc_info,
                 None,
                 AccountManager._hosted_operation_invalid_message(
-                    normalized_phone, language
+                    normalized_phone
                 ),
             )
 
@@ -1912,7 +1883,7 @@ class AccountManager:
             acc_info,
             None,
             AccountManager._hosted_operation_offline_message(
-                normalized_phone, status or "error", language
+                normalized_phone, status or "error"
             ),
         )
 
@@ -1926,16 +1897,13 @@ class AccountManager:
     ) -> str:
         """Convert hosted operation RPC failures into user-facing state transitions."""
         normalized_phone = AccountManager.normalize_phone(phone)
-        language = DataManager.get_user_language(user_id)
         if isinstance(error, FrozenMethodInvalidError):
             logger.warning(
                 "Telegram 冻结账号拒绝托管操作: 操作=%s, 手机号=%s",
                 action,
                 normalized_phone,
             )
-            return t(
-                DataManager.get_user_language(user_id),
-                "hosting.operation_frozen",
+            return t("hosting.operation_frozen",
             )
         if isinstance(error, (AuthKeyUnregisteredError, SessionRevokedError, SessionPasswordNeededError)):
             status = "2fa" if isinstance(error, SessionPasswordNeededError) else "unauthorized"
@@ -1953,7 +1921,7 @@ class AccountManager:
                 source=action,
             )
             return AccountManager._hosted_operation_invalid_message(
-                normalized_phone, language
+                normalized_phone
             )
 
         if isinstance(error, FreshResetAuthorisationForbiddenError):
@@ -1962,7 +1930,7 @@ class AccountManager:
                 action,
                 normalized_phone,
             )
-            return t(language, "hosting.session_too_new")
+            return t("hosting.session_too_new")
 
         if AccountManager._is_recoverable_session_runtime_error(error):
             recovery = await AccountManager._recover_hosted_client_once(
@@ -1973,12 +1941,10 @@ class AccountManager:
                 operation_locked=True,
             )
             if recovery in ("recovered", "stale_client"):
-                return t(
-                    DataManager.get_user_language(user_id),
-                    "hosting.recovered_retry",
+                return t("hosting.recovered_retry",
                 )
             return AccountManager._hosted_operation_offline_message(
-                normalized_phone, recovery, language
+                normalized_phone, recovery
             )
 
         if isinstance(error, (asyncio.TimeoutError, FloodWaitError, ConnectionError, OSError)):
@@ -2000,14 +1966,14 @@ class AccountManager:
                 reason,
             )
             if isinstance(error, FloodWaitError):
-                return t(language, "hosting.rate_limited", seconds=wait_seconds)
+                return t("hosting.rate_limited", seconds=wait_seconds)
             return AccountManager._hosted_operation_offline_message(
-                normalized_phone, reason, language
+                normalized_phone, reason
             )
 
         logger.exception(f"托管操作失败: 操作={action}, 手机号={normalized_phone}")
         return AccountManager._hosted_operation_offline_message(
-            normalized_phone, "operation_error", language
+            normalized_phone, "operation_error"
         )
 
     @staticmethod
@@ -2087,19 +2053,6 @@ class AccountManager:
 
         for rollback_path, _ in rollback_paths:
             safe_remove_session_files(rollback_path)
-
-    @staticmethod
-    def _rollback_transfer_files(
-        source_path: str,
-        target_path: str,
-    ) -> bool:
-        """Best-effort rollback for session transfer artifacts."""
-        try:
-            AccountManager._move_session_files(target_path, source_path)
-            return True
-        except Exception:
-            logger.exception("账户转让失败后回滚 session 文件失败")
-            return False
 
     @staticmethod
     def _is_pending_session_path(session_path: str) -> bool:
@@ -2445,7 +2398,7 @@ class AccountManager:
             await AccountManager._safe_send_bot_message(
                 bot,
                 user_id,
-                t(DataManager.get_user_language(user_id), "notify.offline",
+                t("notify.offline",
                   phone=AccountManager.format_phone_display(phone),
                   reason=reason or "unknown"),
                 context=f"hosted_session_offline:{phone}",
@@ -2479,7 +2432,7 @@ class AccountManager:
                     try:
                         await AccountManager._safe_send_bot_message(
                             bot, user_id,
-                            t(DataManager.get_user_language(user_id), "notify.code_mode_ended", phone=phone),
+                            t("notify.code_mode_ended", phone=phone),
                             context=f"code_fetch_auto_stop:{phone}",
                         )
                     except account_runtime.NotifyBotFatalError:
@@ -2513,7 +2466,7 @@ class AccountManager:
                     if bot:
                         await AccountManager._safe_send_bot_message(
                             bot, user_id,
-                            t(DataManager.get_user_language(user_id), "notify.protection_resumed", phone=account.get("display_phone", phone)),
+                            t("notify.protection_resumed", phone=account.get("display_phone", phone)),
                             context=f"anti_login_auto_resume:{phone}",
                         )
             except asyncio.CancelledError:
@@ -2566,13 +2519,12 @@ class AccountManager:
     @staticmethod
     def _start_code_fetch_unlocked(user_id: int, phone: str) -> str:
         """进入主动获取验证码模式：自动关闭该号的反登录转发"""
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            return t(language, "hosting.no_access")
+            return t("hosting.no_access")
         accounts = AccountManager.get_user_accounts(user_id)
         phone = AccountManager.normalize_phone(phone)
         if phone not in accounts:
-            return t(language, "protection.no_account")
+            return t("protection.no_account")
         # 关闭反登录转发
         acc = accounts[phone]
         if not AccountManager.is_account_online(acc):
@@ -2611,7 +2563,7 @@ class AccountManager:
                         await AccountManager._safe_send_bot_message(
                             bot,
                             user_id,
-                            t(DataManager.get_user_language(user_id), "notify.code_mode_ended", phone=phone),
+                            t("notify.code_mode_ended", phone=phone),
                             context=f"code_fetch_auto_stop:{phone}",
                         )
                     except account_runtime.NotifyBotFatalError:
@@ -2624,7 +2576,7 @@ class AccountManager:
                 code_fetch_tasks.pop(task_key, None)
 
         code_fetch_tasks[task_key] = asyncio.create_task(_auto_stop())
-        return t(language, "hosting.code_started")
+        return t("hosting.code_started")
 
     @staticmethod
     async def stop_code_fetch(user_id: int, phone: str) -> str:
@@ -2635,13 +2587,12 @@ class AccountManager:
     @staticmethod
     def _stop_code_fetch_unlocked(user_id: int, phone: str) -> str:
         """退出主动获取验证码模式：自动开启该号的反登录转发"""
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            return t(language, "hosting.no_access")
+            return t("hosting.no_access")
         accounts = AccountManager.get_user_accounts(user_id)
         phone = AccountManager.normalize_phone(phone)
         if phone not in accounts:
-            return t(language, "protection.no_account")
+            return t("protection.no_account")
         # 移除等待者
         if not AccountManager.is_account_online(accounts[phone]):
             return AccountManager.ensure_account_operable(user_id, phone)[4]
@@ -2665,7 +2616,7 @@ class AccountManager:
             else:
                 acc.pop("temporary_mode", None)
                 acc.pop("temporary_until", None)
-        return t(language, "hosting.code_stopped")
+        return t("hosting.code_stopped")
 
     @staticmethod
     def _check_hosting_cooldown(user_id: int, phone: str, action: str, seconds: int) -> Optional[str]:
@@ -2675,9 +2626,7 @@ class AccountManager:
         until = hosting_action_cooldowns.get(key, 0)
         if until > now:
             remaining = int(math.ceil(until - now))
-            return t(
-                DataManager.get_user_language(user_id),
-                "hosting.cooldown",
+            return t("hosting.cooldown",
                 seconds=remaining,
             )
         hosting_action_cooldowns[key] = now + seconds
@@ -2699,19 +2648,18 @@ class AccountManager:
     @staticmethod
     def get_antilogin_status_text(acc_info: Dict, user_id: int = None) -> str:
         """返回反登录当前状态文案"""
-        language = DataManager.get_user_language(user_id) if user_id is not None else "zh"
         if not acc_info:
-            return t(language, "protection.unknown")
+            return t("protection.unknown")
         if not AccountManager.is_account_online(acc_info):
-            return t(language, "protection.offline")
+            return t("protection.offline")
         mode = AccountManager.get_account_mode(acc_info)
         if mode == "paused":
             until = acc_info.get("temporary_until") or time.time()
             mins = max(1, math.ceil((until - time.time()) / 60))
-            return t(language, "protection.paused", minutes=mins)
+            return t("protection.paused", minutes=mins)
         if mode == "code_fetch":
-            return t(language, "protection.code_mode")
-        return t(language, "protection.active") if acc_info.get("anti_login") else t(language, "protection.off")
+            return t("protection.code_mode")
+        return t("protection.active") if acc_info.get("anti_login") else t("protection.off")
 
     @staticmethod
     def get_antilogin_status_icon(acc_info: Dict) -> str:
@@ -2736,13 +2684,12 @@ class AccountManager:
     @staticmethod
     async def _pause_anti_login_unlocked(user_id: int, phone: str, minutes: int = 30) -> str:
         """暂停反登录监控转发 N 分钟，到期后自动恢复开启"""
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            return t(language, "common.no_access")
+            return t("common.no_access")
         accounts = AccountManager.get_user_accounts(user_id)
         phone = AccountManager.normalize_phone(phone)
         if phone not in accounts:
-            return t(language, "protection.no_account")
+            return t("protection.no_account")
 
         acc = accounts[phone]
         if not AccountManager.is_account_online(acc):
@@ -2775,7 +2722,7 @@ class AccountManager:
                             await AccountManager._safe_send_bot_message(
                                 bot,
                                 user_id,
-                                t(DataManager.get_user_language(user_id), "notify.protection_resumed", phone=display_phone),
+                                t("notify.protection_resumed", phone=display_phone),
                                 context=f"anti_login_auto_resume:{phone}",
                             )
                         except account_runtime.NotifyBotFatalError:
@@ -2794,7 +2741,7 @@ class AccountManager:
                 pause_tasks.pop(task_key, None)
 
         pause_tasks[task_key] = asyncio.create_task(_auto_resume())
-        return t(language, "protection.pause_set", minutes=minutes)
+        return t("protection.pause_set", minutes=minutes)
 
     @staticmethod
     async def resume_anti_login(user_id: int, phone: str) -> str:
@@ -2805,13 +2752,12 @@ class AccountManager:
     @staticmethod
     def _resume_anti_login_unlocked(user_id: int, phone: str) -> str:
         """手动开启反登录监控（同时取消暂停）"""
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            return t(language, "common.no_access")
+            return t("common.no_access")
         accounts = AccountManager.get_user_accounts(user_id)
         phone = AccountManager.normalize_phone(phone)
         if phone not in accounts:
-            return t(language, "protection.no_account")
+            return t("protection.no_account")
         acc = accounts[phone]
         if not AccountManager.is_account_online(acc):
             return AccountManager.ensure_account_operable(user_id, phone)[4]
@@ -2827,7 +2773,7 @@ class AccountManager:
             pause_task.cancel()
             pause_tasks.pop(task_key, None)
 
-        return t(language, "protection.enabled")
+        return t("protection.enabled")
 
     @staticmethod
     async def delete_account(user_id: int, phone: str) -> str:
@@ -2838,13 +2784,12 @@ class AccountManager:
     @staticmethod
     async def _delete_account_unlocked(user_id: int, phone: str) -> str:
         """删除账户：主动远程登出 Telegram 当前设备 + 取消任务并删除本地 session 文件"""
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            return t(language, "hosting.no_access")
+            return t("hosting.no_access")
         accounts = AccountManager.get_user_accounts(user_id)
         phone = AccountManager.normalize_phone(phone)
         if phone not in accounts:
-            return t(language, "protection.no_account")
+            return t("protection.no_account")
 
         acc = accounts.get(phone)
         client = acc.get("client")
@@ -2897,7 +2842,7 @@ class AccountManager:
                 logger.exception("删除会话文件失败")
             AccountManager.remove_hosted_account_metadata(user_id, phone)
 
-        return t(language, "hosting.account_deleted", phone=display_phone)
+        return t("hosting.account_deleted", phone=display_phone)
 
     @staticmethod
     async def kick_other_sessions(user_id: int, phone: str) -> str:
@@ -2908,13 +2853,12 @@ class AccountManager:
     @staticmethod
     async def _kick_other_sessions_unlocked(user_id: int, phone: str) -> str:
         """踢出该号其他会话（保留当前托管 session）"""
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            return t(language, "hosting.no_access")
+            return t("hosting.no_access")
         accounts = AccountManager.get_user_accounts(user_id)
         phone = AccountManager.normalize_phone(phone)
         if phone not in accounts:
-            return t(language, "protection.no_account")
+            return t("protection.no_account")
         cooldown_msg = AccountManager._check_hosting_cooldown(user_id, phone, "kick_sessions", 3 * 60)
         if cooldown_msg:
             return cooldown_msg
@@ -2927,7 +2871,7 @@ class AccountManager:
             return message
         try:
             await client(functions.auth.ResetAuthorizationsRequest())
-            return t(language, "hosting.sessions_kicked")
+            return t("hosting.sessions_kicked")
         except Exception as e:
             return await AccountManager.handle_hosted_operation_error(user_id, phone, client, "kick_sessions", e)
 
@@ -2994,14 +2938,13 @@ class AccountManager:
         clean_type: str,
         result: AccountCleanupResult,
     ) -> None:
-        language = DataManager.get_user_language(user_id)
         if clean_type in {"chats", "all"}:
             try:
                 dialogs = await client.get_dialogs()
             except Exception as error:
                 await AccountManager._record_cleanup_operation_error(
                     result, user_id, phone, client,
-                    t(language, "hosting.clean_error.dialogs"), error
+                    t("hosting.clean_error.dialogs"), error
                 )
                 if AccountManager._cleanup_session_is_invalid(error):
                     return
@@ -3018,7 +2961,7 @@ class AccountManager:
                         except Exception as error:
                             await AccountManager._record_cleanup_operation_error(
                                 result, user_id, phone, client,
-                                t(language, "hosting.clean_error.block_bot"), error
+                                t("hosting.clean_error.block_bot"), error
                             )
                             if AccountManager._cleanup_should_stop(error):
                                 if AccountManager._cleanup_session_is_invalid(error):
@@ -3027,7 +2970,7 @@ class AccountManager:
                 except Exception as error:
                     await AccountManager._record_cleanup_operation_error(
                         result, user_id, phone, client,
-                        t(language, "hosting.clean_error.delete_chat"), error
+                        t("hosting.clean_error.delete_chat"), error
                     )
                     if AccountManager._cleanup_should_stop(error):
                         if AccountManager._cleanup_session_is_invalid(error):
@@ -3045,15 +2988,13 @@ class AccountManager:
                     await client(functions.contacts.DeleteContactsRequest(id=input_users))
                     result.contacts_deleted += len(input_users)
                 if missing_count:
-                    result.errors.append(t(
-                        language,
-                        "hosting.clean_error.missing_contacts",
+                    result.errors.append(t("hosting.clean_error.missing_contacts",
                         count=missing_count,
                     ))
             except Exception as error:
                 await AccountManager._record_cleanup_operation_error(
                     result, user_id, phone, client,
-                    t(language, "hosting.clean_error.delete_contacts"), error
+                    t("hosting.clean_error.delete_contacts"), error
                 )
                 if AccountManager._cleanup_session_is_invalid(error):
                     return
@@ -3079,9 +3020,7 @@ class AccountManager:
         """清理单个在线托管账户的数据，但保留当前托管会话。"""
         result = AccountCleanupResult(status="failed")
         if clean_type not in {"chats", "contacts", "all"}:
-            result.errors.append(t(
-                DataManager.get_user_language(user_id),
-                "hosting.clean_error.invalid_type",
+            result.errors.append(t("hosting.clean_error.invalid_type",
             ))
             return result
 
@@ -3099,7 +3038,7 @@ class AccountManager:
             )
             if remaining:
                 result.errors.append(AccountManager.hosting_clean_age_message(
-                    remaining, DataManager.get_user_language(user_id)
+                    remaining
                 ))
                 return result
 
@@ -3133,9 +3072,7 @@ class AccountManager:
                     timeout=HOSTING_CLEAN_TIMEOUT_SECONDS,
                 )
             except asyncio.TimeoutError:
-                result.errors.append(t(
-                    DataManager.get_user_language(user_id),
-                    "hosting.clean_timeout_result",
+                result.errors.append(t("hosting.clean_timeout_result",
                     seconds=HOSTING_CLEAN_TIMEOUT_SECONDS,
                 ))
             except Exception as error:
@@ -3160,14 +3097,13 @@ class AccountManager:
     @staticmethod
     async def _request_2fa_reset_unlocked(user_id: int, phone: str) -> str:
         """触发 Telegram 官方的“忘记二级密码/等待期重置”(通常 7 天)。"""
-        language = DataManager.get_user_language(user_id)
         if not AccountManager.check_access(user_id):
-            return t(language, "hosting.no_access")
+            return t("hosting.no_access")
 
         accounts = AccountManager.get_user_accounts(user_id)
         phone = AccountManager.normalize_phone(phone)
         if phone not in accounts:
-            return t(language, "protection.no_account")
+            return t("protection.no_account")
         cooldown_msg = AccountManager._check_hosting_cooldown(user_id, phone, "reset_2fa", 60 * 60)
         if cooldown_msg:
             return cooldown_msg
@@ -3190,7 +3126,7 @@ class AccountManager:
                     until_str = until.strftime("%Y-%m-%d %H:%M:%S UTC")
                 else:
                     until_str = str(until)
-                return t(language, "hosting.password_reset_wait", time=until_str)
+                return t("hosting.password_reset_wait", time=until_str)
 
             if isinstance(result, types.account.ResetPasswordFailedWait):
                 retry = result.retry_date
@@ -3198,14 +3134,14 @@ class AccountManager:
                     retry_str = retry.strftime("%Y-%m-%d %H:%M:%S UTC")
                 else:
                     retry_str = str(retry)
-                return t(language, "hosting.password_reset_retry", time=retry_str)
+                return t("hosting.password_reset_retry", time=retry_str)
 
             # ResetPasswordOk：可能表示无需等待/已无二级密码/或已完成
             if isinstance(result, types.account.ResetPasswordOk):
-                return t(language, "hosting.password_reset_ok")
+                return t("hosting.password_reset_ok")
 
             # 兜底
-            return t(language, "hosting.password_reset_sent")
+            return t("hosting.password_reset_sent")
         except Exception as e:
             return await AccountManager.handle_hosted_operation_error(user_id, phone, client, "reset_2fa", e)
 
@@ -3230,11 +3166,10 @@ class AccountManager:
     @staticmethod
     async def _change_hosted_2fa_unlocked(user_id: int, phone: str, old_password: str, new_password: str) -> str:
         """Change an existing hosted account 2FA password."""
-        language = DataManager.get_user_language(user_id)
         old_password = (old_password or "").strip()
         new_password = (new_password or "").strip()
         if not old_password or not new_password:
-            return t(language, "hosting.password_change_format")
+            return t("hosting.password_change_format")
 
         ok, accounts, phone, acc_info, client, message = await AccountManager.ensure_hosted_client_ready(
             user_id,
@@ -3246,10 +3181,10 @@ class AccountManager:
 
         try:
             await client.edit_2fa(current_password=old_password, new_password=new_password)
-            return t(language, "hosting.password_changed")
+            return t("hosting.password_changed")
         except Exception as e:
             if AccountManager._is_2fa_password_invalid_error(e):
-                return t(language, "hosting.password_old_wrong")
+                return t("hosting.password_old_wrong")
             return await AccountManager.handle_hosted_operation_error(user_id, phone, client, "change_2fa", e)
 
     @staticmethod
@@ -3261,10 +3196,9 @@ class AccountManager:
     @staticmethod
     async def _set_hosted_2fa_unlocked(user_id: int, phone: str, new_password: str) -> str:
         """Set a new 2FA password for a hosted account without current 2FA."""
-        language = DataManager.get_user_language(user_id)
         new_password = (new_password or "").strip()
         if not new_password:
-            return t(language, "hosting.password_new_empty")
+            return t("hosting.password_new_empty")
 
         ok, accounts, phone, acc_info, client, message = await AccountManager.ensure_hosted_client_ready(
             user_id,
@@ -3276,10 +3210,10 @@ class AccountManager:
 
         try:
             await client.edit_2fa(new_password=new_password)
-            return t(language, "hosting.password_set")
+            return t("hosting.password_set")
         except Exception as e:
             if AccountManager._is_2fa_password_invalid_error(e):
-                return t(language, "hosting.password_already_set")
+                return t("hosting.password_already_set")
             return await AccountManager.handle_hosted_operation_error(user_id, phone, client, "set_2fa", e)
 
     @staticmethod
@@ -3291,10 +3225,9 @@ class AccountManager:
     @staticmethod
     async def _clear_hosted_2fa_unlocked(user_id: int, phone: str, old_password: str) -> str:
         """Clear the 2FA password for a hosted account."""
-        language = DataManager.get_user_language(user_id)
         old_password = (old_password or "").strip()
         if not old_password:
-            return t(language, "hosting.password_old_empty")
+            return t("hosting.password_old_empty")
 
         ok, accounts, phone, acc_info, client, message = await AccountManager.ensure_hosted_client_ready(
             user_id,
@@ -3306,10 +3239,10 @@ class AccountManager:
 
         try:
             await client.edit_2fa(current_password=old_password, new_password=None)
-            return t(language, "hosting.password_cleared")
+            return t("hosting.password_cleared")
         except Exception as e:
             if AccountManager._is_2fa_password_invalid_error(e):
-                return t(language, "hosting.password_old_wrong")
+                return t("hosting.password_old_wrong")
             return await AccountManager.handle_hosted_operation_error(user_id, phone, client, "clear_2fa", e)
 
     @staticmethod
@@ -3426,26 +3359,6 @@ class AccountManager:
             return AccountTransferResult(False, "target_session_exists", "❌ 目标用户名下已存在该账户会话", **result_kwargs)
 
         return AccountTransferResult(True, "ready", "可以转让", **result_kwargs)
-
-    @staticmethod
-    async def _restore_transfer_source(
-        source_path: str,
-        from_user_id: int,
-        phone: str,
-        anti_login: bool,
-    ) -> bool:
-        try:
-            _, restored_phone, success, _ = await AccountManager.create_client_from_session(
-                source_path, from_user_id, detailed=True
-            )
-            if success:
-                restored = user_accounts.get(from_user_id, {}).get(restored_phone or phone)
-                if restored is not None:
-                    restored["anti_login"] = anti_login
-                return True
-        except Exception:
-            logger.exception(f"转让失败后恢复原账户异常: 用户ID={from_user_id}, 手机号={phone}")
-        return False
 
     @staticmethod
     def _transaction_subscription_snapshots(transaction: Dict) -> Dict[int, Optional[Dict]]:
@@ -3786,14 +3699,12 @@ class AccountManager:
             target_notified = await AccountManager._safe_send_bot_message(
                 bot,
                 to_user_id,
-                t(DataManager.get_user_language(to_user_id), "notify.transfer_received", phone=phone, source=from_user_id),
+                t("notify.transfer_received", phone=phone, source=from_user_id),
                 context=f"account_transfer_target:{phone}",
             )
-        message = t(DataManager.get_user_language(from_user_id), "transfer.success", phone=phone, target=to_user_id)
+        message = t("transfer.success", phone=phone, target=to_user_id)
         if not target_notified:
-            message += "\n\n" + t(
-                DataManager.get_user_language(from_user_id),
-                "transfer.notify_failed",
+            message += "\n\n" + t("transfer.notify_failed",
             )
         return AccountTransferResult(True, "success", message, phone, from_user_id, to_user_id, target_notified=target_notified)
 
@@ -4335,8 +4246,7 @@ class AccountManager:
         """创建新客户端"""
         # 检查权限
         if not AccountManager.check_access(user_id):
-            raise PermissionError(t(
-                DataManager.get_user_language(user_id), "account.no_access"
+            raise PermissionError(t("account.no_access"
             ))
         
         # 标准化手机号
@@ -4352,9 +4262,7 @@ class AccountManager:
             if any(os.path.exists(path) for path in session_related_paths(session_path)):
                 remove_result = AccountManager._remove_session_files_checked(session_path)
                 if not remove_result.ok:
-                    raise RuntimeError(t(
-                        DataManager.get_user_language(user_id),
-                        "account.session_releasing",
+                    raise RuntimeError(t("account.session_releasing",
                     ))
 
             client = TelegramClient(
@@ -4366,7 +4274,6 @@ class AccountManager:
             )
         
         client._pending_session_path = session_path
-        client._pending_display_phone = display_phone
         
         return client
 
@@ -4374,8 +4281,7 @@ class AccountManager:
     async def create_qr_client(user_id: int) -> TelegramClient:
         """为扫码登录创建临时客户端。"""
         if not AccountManager.check_access(user_id):
-            raise PermissionError(t(
-                DataManager.get_user_language(user_id), "account.no_access"
+            raise PermissionError(t("account.no_access"
             ))
 
         session_name = f"{user_id}_qr.session"
@@ -4387,9 +4293,7 @@ class AccountManager:
             if any(os.path.exists(path) for path in session_related_paths(session_path)):
                 remove_result = AccountManager._remove_session_files_checked(session_path)
                 if not remove_result.ok:
-                    raise RuntimeError(t(
-                        DataManager.get_user_language(user_id),
-                        "account.qr_session_releasing",
+                    raise RuntimeError(t("account.qr_session_releasing",
                     ))
 
             client = TelegramClient(
@@ -4401,7 +4305,6 @@ class AccountManager:
             )
 
         client._pending_session_path = session_path
-        client._pending_display_phone = "QR login"
 
         return client
 
@@ -4471,7 +4374,7 @@ class AccountManager:
                             await AccountManager._safe_send_bot_message(
                                 bot,
                                 uid,
-                                t(DataManager.get_user_language(uid), "notify.login_code",
+                                t("notify.login_code",
                                   code=code, phone=normalized_phone, time=now),
                                 context=f"code_fetch:{normalized_phone}",
                             )
@@ -4495,12 +4398,12 @@ class AccountManager:
                     return "success" if invalidated else "failed"
 
                 if invalidated:
-                    alert_text = t(DataManager.get_user_language(user_id), "notify.login_blocked",
+                    alert_text = t("notify.login_blocked",
                                    code=masked_code, phone=normalized_phone, time=now)
                     context = f"login_handler:{normalized_phone}"
                     result = "success"
                 else:
-                    alert_text = t(DataManager.get_user_language(user_id), "notify.login_block_failed",
+                    alert_text = t("notify.login_block_failed",
                                    code=masked_code, phone=normalized_phone, time=now)
                     context = f"login_handler_failed:{normalized_phone}"
                     result = "failed"
@@ -4602,42 +4505,12 @@ class AccountManager:
         }
 
     @staticmethod
-    def _authorization_details(authorization) -> Dict[str, str]:
-        detected = getattr(authorization, "date_active", None)
-        if isinstance(detected, datetime):
-            if detected.tzinfo is not None:
-                detected = detected.astimezone()
-            detected_at = detected.strftime("%Y-%m-%d %H:%M:%S")
-        else:
-            detected_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        device = (
-            getattr(authorization, "device_model", None)
-            or getattr(authorization, "app_name", None)
-            or getattr(authorization, "platform", None)
-            or ""
-        )
-        location = ", ".join(
-            part
-            for part in (
-                str(getattr(authorization, "region", "") or "").strip(),
-                str(getattr(authorization, "country", "") or "").strip(),
-            )
-            if part
-        )
-        return {
-            "device_name": str(device).strip(),
-            "location": location,
-            "detected_at": detected_at,
-        }
-
-    @staticmethod
     def _new_device_message(user_id: int, phone: str, details: Dict, suffix: str) -> str:
-        language = DataManager.get_user_language(user_id)
         detected_at = details.get("detected_at") or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return t(language, "device.prompt",
+        return t("device.prompt",
                  phone=AccountManager.format_phone_display(phone),
-                 device=details.get('device_name') or t(language, "device.unknown"),
-                 location=details.get('location') or t(language, "device.location_unknown"),
+                 device=details.get('device_name') or t("device.unknown"),
+                 location=details.get('location') or t("device.location_unknown"),
                  time=detected_at, suffix=suffix)
 
     @staticmethod
@@ -4649,13 +4522,12 @@ class AccountManager:
             logger.info(f"未绑定通知机器人，稍后重试新设备提醒: {phone}")
             return None
         digits = AccountManager._digits_only(phone)
-        language = DataManager.get_user_language(user_id)
         buttons = [[
-            Button.inline(t(language, "device.allow"), f"nda:a:{digits}:{auth_hash}".encode("ascii")),
-            Button.inline(t(language, "device.deny"), f"nda:r:{digits}:{auth_hash}".encode("ascii")),
+            Button.inline(t("device.allow"), f"nda:a:{digits}:{auth_hash}".encode("ascii")),
+            Button.inline(t("device.deny"), f"nda:r:{digits}:{auth_hash}".encode("ascii")),
         ]]
         text = AccountManager._new_device_message(
-            user_id, phone, details, t(language, "device.choose")
+            user_id, phone, details, t("device.choose")
         )
         for attempt in range(NEW_DEVICE_ACTION_ATTEMPTS):
             message = await AccountManager._safe_send_bot_message(
@@ -4789,11 +4661,9 @@ class AccountManager:
                     user_id, normalized_phone, known_hashes, pending, initialized=True
                 )
                 suffix = (
-                    t(DataManager.get_user_language(user_id), "device.auto_denied")
+                    t("device.auto_denied")
                     if outcome == "applied"
-                    else t(
-                        DataManager.get_user_language(user_id),
-                        "device.already_expired",
+                    else t("device.already_expired",
                     )
                 )
                 await AccountManager._send_new_device_notice(
@@ -4843,9 +4713,7 @@ class AccountManager:
                 return {
                     "ok": False,
                     "resolved": False,
-                    "message": t(
-                        DataManager.get_user_language(user_id),
-                        "protection.device_missing",
+                    "message": t("protection.device_missing",
                     ),
                 }
             client = acc_info.get("client")
@@ -4853,9 +4721,7 @@ class AccountManager:
                 return {
                     "ok": False,
                     "resolved": False,
-                    "message": t(
-                        DataManager.get_user_language(user_id),
-                        "hosting.offline",
+                    "message": t("hosting.offline",
                     ),
                 }
 
@@ -4867,9 +4733,7 @@ class AccountManager:
                 return {
                     "ok": True,
                     "resolved": True,
-                    "message": t(
-                        DataManager.get_user_language(user_id),
-                        "device.expired",
+                    "message": t("device.expired",
                     ),
                 }
 
@@ -4880,18 +4744,16 @@ class AccountManager:
                 return {
                     "ok": False,
                     "resolved": False,
-                    "message": t(
-                        DataManager.get_user_language(user_id),
-                        "device.frozen",
+                    "message": t("device.frozen",
                     ),
                 }
             if outcome == "missing":
-                result_message = t(DataManager.get_user_language(user_id), "device.expired")
+                result_message = t("device.expired")
             elif allow:
                 known_hashes.add(str(auth_hash))
-                result_message = t(DataManager.get_user_language(user_id), "device.allowed")
+                result_message = t("device.allowed")
             else:
-                result_message = t(DataManager.get_user_language(user_id), "device.denied")
+                result_message = t("device.denied")
             pending.pop(str(auth_hash), None)
             AccountManager.save_hosted_authorization_state(
                 user_id, normalized_phone, known_hashes, pending, initialized=True
@@ -5132,23 +4994,8 @@ class AccountManager:
         return result
 
     @staticmethod
-    async def _recover_protocol_session_once(
-        user_id: int,
-        phone: str,
-        failed_client: TelegramClient,
-        reason: str,
-    ) -> bool:
-        """Backward-compatible boolean wrapper for the unified recovery path."""
-        return (
-            await AccountManager._recover_hosted_client_once(
-                user_id, phone, failed_client, reason
-            )
-        ) == "recovered"
-
-    @staticmethod
     async def authenticate(client: TelegramClient, phone: str, user_id: int):
         """认证流程"""
-        language = DataManager.get_user_language(user_id)
         normalized_phone = AccountManager.normalize_phone(phone)
         display_phone = AccountManager.format_phone_display(phone)
         pending_session_path = AccountManager._client_session_path(client)
@@ -5164,7 +5011,7 @@ class AccountManager:
                     pending_session_path=pending_session_path,
                 )
                 
-                return t(language, "auth.already_logged_in")
+                return t("auth.already_logged_in")
             
             try:
                 # 使用标准化手机号发送验证码
@@ -5173,7 +5020,7 @@ class AccountManager:
                     await AccountManager.cleanup_incomplete_account(
                         user_id, normalized_phone, client
                     )
-                    return render_login_code_rate_limit(rate_limit, language)
+                    return render_login_code_rate_limit(rate_limit)
                 sent_code = await client.send_code_request(normalized_phone)
                 logger.debug(f"验证码已发送到 {normalized_phone}, 类型: {sent_code.type}")
 
@@ -5189,7 +5036,7 @@ class AccountManager:
                     'max_code_attempts': 5
                 }
                 
-                return t(language, "auth.code_sent")
+                return t("auth.code_sent")
                 
             except FloodWaitError as e:
                 wait_time = e.seconds
@@ -5203,57 +5050,51 @@ class AccountManager:
                 if reminder_result is not None:
                     return reminder_system.render_schedule_result(
                         reminder_result,
-                        DataManager.get_user_language(user_id),
                     )
-                return t(language, "auth.rate_limited", seconds=wait_time)
+                return t("auth.rate_limited", seconds=wait_time)
             except Exception as e:
                 logger.error(f"发送验证码失败 {phone}: {str(e)}")
                 await AccountManager.cleanup_incomplete_account(user_id, normalized_phone, client)
-                return t(language, "auth.send_code_failed", error=str(e))
+                return t("auth.send_code_failed", error=str(e))
                 
         except Exception as e:
             logger.error(f"认证过程异常 {phone}: {str(e)}")
             await AccountManager.cleanup_incomplete_account(user_id, normalized_phone, client)
-            return t(language, "auth.failed", error=str(e))
+            return t("auth.failed", error=str(e))
 
     @staticmethod
     async def probe_login_unlock(client: TelegramClient, phone: str, user_id: int) -> str:
         """Probe Telegram's official login-code limit without continuing login."""
         normalized_phone = AccountManager.normalize_phone(phone)
-        language = DataManager.get_user_language(user_id)
         reminder_system = account_runtime.get_login_unlock_reminder_system()
         if reminder_system is None:
             await AccountManager.cleanup_incomplete_account(
                 user_id, normalized_phone, client
             )
-            return t(language, "login_unlock.unavailable")
+            return t("login_unlock.unavailable")
 
         try:
             await client.connect()
             if await client.is_user_authorized():
                 if not await reminder_system.remove(user_id, normalized_phone):
-                    return t(language, "login_unlock.manual_remove_failed")
-                return t(
-                    language,
-                    "login_unlock.manual_available",
+                    return t("login_unlock.manual_remove_failed")
+                return t("login_unlock.manual_available",
                     phone=AccountManager.format_phone_display(normalized_phone),
                 )
             rate_limit = login_code_request_rate_limiter.acquire(user_id)
             if not rate_limit.allowed:
-                return render_login_code_rate_limit(rate_limit, language)
+                return render_login_code_rate_limit(rate_limit)
             await client.send_code_request(normalized_phone)
             if not await reminder_system.remove(user_id, normalized_phone):
-                return t(language, "login_unlock.manual_remove_failed")
-            return t(
-                language,
-                "login_unlock.manual_available",
+                return t("login_unlock.manual_remove_failed")
+            return t("login_unlock.manual_available",
                 phone=AccountManager.format_phone_display(normalized_phone),
             )
         except FloodWaitError as error:
             result = await reminder_system.schedule(
                 user_id, normalized_phone, max(1, int(error.seconds))
             )
-            return reminder_system.render_schedule_result(result, language)
+            return reminder_system.render_schedule_result(result)
         except Exception as error:
             logger.warning(
                 "手动检测登录限制失败: 用户ID=%s, 手机号=%s, 错误类型=%s",
@@ -5261,7 +5102,7 @@ class AccountManager:
                 normalized_phone,
                 type(error).__name__,
             )
-            return t(language, "login_unlock.manual_failed")
+            return t("login_unlock.manual_failed")
         finally:
             await AccountManager.cleanup_incomplete_account(
                 user_id, normalized_phone, client
@@ -5270,9 +5111,8 @@ class AccountManager:
     @staticmethod
     async def handle_code(user_id: int, code: str):
         """处理验证码"""
-        language = DataManager.get_user_language(user_id)
         if user_id not in user_states or not user_states[user_id].get('waiting_code'):
-            return t(language, "auth.code_request_expired")
+            return t("auth.code_request_expired")
         
         state = user_states[user_id]
         client = state['auth_client']
@@ -5284,14 +5124,12 @@ class AccountManager:
         if state['code_attempts'] > state['max_code_attempts']:
             # 清理半成品账号 + session 文件
             await AccountManager.cleanup_incomplete_account(user_id, phone, client)
-            return t(language, "auth.code_attempts_exhausted")
+            return t("auth.code_attempts_exhausted")
         
         # 允许用户在验证码数字间输入空格、横线等分隔符
         code = re.sub(r'\D', '', code or '')
         if len(code) < 4:
-            return t(
-                language,
-                "auth.code_format_invalid",
+            return t("auth.code_format_invalid",
                 remaining=state['max_code_attempts'] - state['code_attempts'],
             )
         
@@ -5310,13 +5148,11 @@ class AccountManager:
                 )
             except Exception as promote_error:
                 await AccountManager.cleanup_incomplete_account(user_id, normalized_phone, client)
-                return t(language, "auth.hosting_init_failed", error=promote_error)
+                return t("auth.hosting_init_failed", error=promote_error)
 
             user_states.pop(user_id, None)
             
-            return t(
-                language,
-                "auth.login_success",
+            return t("auth.login_success",
                 phone=AccountManager.format_phone_display(phone),
             )
             
@@ -5326,49 +5162,46 @@ class AccountManager:
             state['code_attempts'] = 0
             state['password_attempts'] = 0
             state['max_password_attempts'] = 5
-            return t(language, "auth.password_required")
+            return t("auth.password_required")
             
         except PhoneCodeInvalidError:
             remaining = state['max_code_attempts'] - state['code_attempts']
             if remaining > 0:
-                return t(language, "auth.code_invalid", remaining=remaining)
+                return t("auth.code_invalid", remaining=remaining)
             else:
                 # 清理半成品账号 + session 文件
                 await AccountManager.cleanup_incomplete_account(user_id, phone, client)
-                return t(language, "auth.code_attempts_exhausted")
+                return t("auth.code_attempts_exhausted")
                 
         except PhoneCodeExpiredError:
             # 清理半成品账号 + session 文件
             await AccountManager.cleanup_incomplete_account(user_id, phone, client)
-            return t(language, "auth.code_expired")
+            return t("auth.code_expired")
             
         except PhoneCodeEmptyError:
-            return t(language, "auth.code_empty")
+            return t("auth.code_empty")
             
         except FloodWaitError as e:
             wait_time = e.seconds
-            return t(language, "auth.operation_rate_limited", seconds=wait_time)
+            return t("auth.operation_rate_limited", seconds=wait_time)
             
         except Exception as e:
             logger.error(f"验证码处理异常 {phone}: {str(e)}")
             remaining = state['max_code_attempts'] - state['code_attempts']
             if remaining > 0:
-                return t(
-                    language,
-                    "auth.login_failed_retry",
+                return t("auth.login_failed_retry",
                     error=str(e),
                     remaining=remaining,
                 )
             else:
                 await AccountManager.cleanup_incomplete_account(user_id, phone, client)
-                return t(language, "auth.login_failed_exhausted", error=str(e))
+                return t("auth.login_failed_exhausted", error=str(e))
     
     @staticmethod
     async def handle_password(user_id: int, password: str):
         """处理密码"""
-        language = DataManager.get_user_language(user_id)
         if user_id not in user_states or not user_states[user_id].get('waiting_password'):
-            return t(language, "auth.password_request_expired")
+            return t("auth.password_request_expired")
         
         state = user_states[user_id]
         client = state['auth_client']
@@ -5378,7 +5211,7 @@ class AccountManager:
         
         password = password.strip()
         if not password:
-            return t(language, "auth.password_empty")
+            return t("auth.password_empty")
         
         if not state.get("password_verified"):
             try:
@@ -5391,8 +5224,8 @@ class AccountManager:
                 remaining = max_attempts - state["password_attempts"]
                 if remaining <= 0:
                     await AccountManager.cleanup_incomplete_account(user_id, phone, client)
-                    return t(language, "auth.password_attempts_exhausted")
-                return t(language, "auth.password_invalid", remaining=remaining)
+                    return t("auth.password_attempts_exhausted")
+                return t("auth.password_invalid", remaining=remaining)
 
         try:
             if not phone:
@@ -5401,7 +5234,7 @@ class AccountManager:
                 raw_phone = getattr(me, "phone", None)
                 if not raw_phone:
                     await AccountManager.cleanup_incomplete_account(user_id, phone, client)
-                    return t(language, "auth.phone_unavailable")
+                    return t("auth.phone_unavailable")
                 phone = f"+{raw_phone}"
                 state["auth_phone"] = phone
                 display_phone = AccountManager.format_phone_display(phone)
@@ -5424,19 +5257,17 @@ class AccountManager:
                 )
             except Exception as promote_error:
                 await AccountManager.cleanup_incomplete_account(user_id, normalized_phone, client)
-                return t(language, "auth.hosting_init_failed", error=promote_error)
+                return t("auth.hosting_init_failed", error=promote_error)
 
             user_states.pop(user_id, None)
             
-            return t(
-                language,
-                "auth.login_success",
+            return t("auth.login_success",
                 phone=AccountManager.format_phone_display(phone),
             )
             
         except Exception as e:
             logger.exception(f"二级密码验证通过后初始化失败: 手机号={phone or '未知'}")
-            return t(language, "auth.password_init_failed", error=str(e))
+            return t("auth.password_init_failed", error=str(e))
 
 
     @staticmethod
@@ -5671,31 +5502,3 @@ class AccountManager:
             "details": details,
             "fail_reasons": fail_reasons,
         }
-
-    @staticmethod
-    async def disable_account(user_id: int, phone: str):
-        """禁用账户"""
-        if user_id in user_accounts and phone in user_accounts[user_id]:
-            client = user_accounts[user_id][phone]['client']
-            task_key = f"{user_id}_{phone}"
-            async with AccountManager._get_session_lock(task_key):
-                await AccountManager._cancel_client_task(task_key)
-                await AccountManager._cancel_account_auxiliary_tasks(user_id, phone)
-                await AccountManager._safe_disconnect_client(
-                    client,
-                    f"disable-account:{user_id}:{phone}",
-                    timeout=10,
-                )
-
-                session_file = user_accounts[user_id][phone]['session_file']
-                session_path = os.path.join(SESSIONS_DIR, session_file)
-
-                if os.path.exists(session_path):
-                    await AccountManager.backup_session_file(session_path, "disabled")
-
-                del user_accounts[user_id][phone]
-                if not user_accounts[user_id]:
-                    del user_accounts[user_id]
-            
-            return True
-        return False

@@ -33,8 +33,7 @@ from reminders.login_unlock_reminder import (
     parse_utc,
     phone_key,
 )
-from storage.data_manager import DataManager
-from user_timezones import (
+from china_time import (
     timezone_text,
 )
 
@@ -44,10 +43,6 @@ LOGIN_UNLOCK_CUSTOM_EMOJI_ID = 5778605968208170641
 LOGIN_UNLOCK_ADD_CUSTOM_EMOJI_ID = 5775937998948404844
 LOGIN_UNLOCK_CANCEL_TIMEOUT_SECONDS = 5.0
 _login_unlock_probe_tasks = {}
-
-
-def _language(user_id: int) -> str:
-    return DataManager.get_user_language(user_id)
 
 
 async def cancel_login_unlock_flow(user_id: int) -> None:
@@ -77,17 +72,16 @@ async def cancel_login_unlock_flow(user_id: int) -> None:
 async def setup_login_unlock_handlers(bot: TelegramClient):
     async def render_menu(event, *, answer: bool = True):
         user_id = event.sender_id
-        language = _language(user_id)
         system = account_runtime.get_login_unlock_reminder_system()
         if system is None:
             if answer:
-                await event.answer(t(language, "login_unlock.unavailable"), alert=True)
+                await event.answer(t("login_unlock.unavailable"), alert=True)
             return
         records = await system.list_records(user_id)
         quota = system.quota_status(user_id)
         buttons = [[
             Button.inline(
-                t(language, "login_unlock.manual_add"),
+                t("login_unlock.manual_add"),
                 b"login_unlock_add",
                 icon=LOGIN_UNLOCK_ADD_CUSTOM_EMOJI_ID,
             ),
@@ -99,22 +93,18 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
             digits = phone_key(record.get("phone", ""))
             if digits:
                 buttons.append([Button.inline(
-                    t(
-                        language,
-                        "login_unlock.account_button",
+                    t("login_unlock.account_button",
                         phone=record.get("phone", ""),
                     ),
                     f"login_unlock_detail_{digits}".encode(),
                 )])
-        buttons.append([back_button(b"back_to_main", language=language)])
-        text = t(
-            language,
-            "login_unlock.menu",
+        buttons.append([back_button(b"back_to_main")])
+        text = t("login_unlock.menu",
             used=quota["used"],
-            limit=format_limit(quota["limit"], language),
+            limit=format_limit(quota["limit"]),
             items=(
-                t(language, "login_unlock.choose_account")
-                if records else t(language, "login_unlock.empty")
+                t("login_unlock.choose_account")
+                if records else t("login_unlock.empty")
             ),
         )
         if answer:
@@ -135,7 +125,7 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
         )
         if not cleanup.ok:
             await event.answer(
-                t(_language(event.sender_id), "start.session_releasing"), alert=True
+                t("start.session_releasing"), alert=True
             )
             return
         await render_menu(event)
@@ -145,11 +135,10 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
         if not await require_access(event, alert=True):
             return
         user_id = event.sender_id
-        language = _language(user_id)
         digits = event.data.decode().removeprefix("login_unlock_detail_")
         system = account_runtime.get_login_unlock_reminder_system()
         if system is None:
-            await event.answer(t(language, "login_unlock.unavailable"), alert=True)
+            await event.answer(t("login_unlock.unavailable"), alert=True)
             return
         records = await system.list_records(user_id)
         record = next(
@@ -158,22 +147,18 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
         )
         unlock_at = parse_utc(record.get("unlock_at")) if record else None
         if record is None or unlock_at is None:
-            await event.answer(t(language, "login_unlock.not_found"), alert=True)
+            await event.answer(t("login_unlock.not_found"), alert=True)
             await render_menu(event, answer=False)
             return
 
         reminder_lines = [
-            t(
-                language,
-                "login_unlock.list_node",
-                remaining=format_offset(node.get("offset_seconds", 1), language),
+            t("login_unlock.list_node",
+                remaining=format_offset(node.get("offset_seconds", 1)),
             )
             for node in record.get("nodes", [])
             if parse_utc(node.get("remind_at")) is not None
         ]
-        text = t(
-            language,
-            "login_unlock.list_item",
+        text = t("login_unlock.list_item",
             phone=record.get("phone", ""),
             unlock=timezone_text(unlock_at),
             nodes="\n".join(reminder_lines),
@@ -181,36 +166,34 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
         await event.answer()
         await safe_edit(event, text, buttons=[
             [Button.inline(
-                t(language, "login_unlock.cancel_item"),
+                t("login_unlock.cancel_item"),
                 f"login_unlock_cancel_{digits}".encode(),
             )],
-            [back_button(b"login_unlock_menu", language=language)],
+            [back_button(b"login_unlock_menu")],
         ])
 
     @bot.on(events.CallbackQuery(pattern=b"login_unlock_add"))
     async def login_unlock_add(event):
         if not await require_access(event, alert=True):
             return
-        language = _language(event.sender_id)
         set_state(event.sender_id, login_unlock_manual_phone=True)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "login_unlock.manual_prompt"),
-            buttons=[[back_button(b"login_unlock_menu", language=language)]],
+            t("login_unlock.manual_prompt"),
+            buttons=[[back_button(b"login_unlock_menu")]],
         )
 
     @bot.on(events.CallbackQuery(pattern=rb"login_unlock_cancel_\d+"))
     async def login_unlock_cancel(event):
         if not await require_access(event, alert=True):
             return
-        language = _language(event.sender_id)
         digits = event.data.decode().removeprefix("login_unlock_cancel_")
         system = account_runtime.get_login_unlock_reminder_system()
         if system is None or not await system.remove(event.sender_id, digits):
-            await event.answer(t(language, "login_unlock.cancel_failed"), alert=True)
+            await event.answer(t("login_unlock.cancel_failed"), alert=True)
             return
-        await event.answer(t(language, "login_unlock.cancelled"))
+        await event.answer(t("login_unlock.cancelled"))
         await render_menu(event, answer=False)
 
     @bot.on(events.NewMessage)
@@ -221,48 +204,45 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
             return
         if event.text and event.text.startswith("/"):
             return
-        language = _language(user_id)
         phone = (event.text or "").strip()
         await delete_sensitive_message(event, "login unlock phone")
         if not await require_access(event):
             return
         if not AccountManager.PHONE_REGEX.match(phone):
             await event.respond(
-                t(language, "account.phone.invalid"),
-                buttons=[[back_button(b"login_unlock_menu", language=language)]],
+                t("account.phone.invalid"),
+                buttons=[[back_button(b"login_unlock_menu")]],
             )
             return
 
         system = account_runtime.get_login_unlock_reminder_system()
         if system is None:
             clear_state(user_id)
-            await event.respond(t(language, "login_unlock.unavailable"))
+            await event.respond(t("login_unlock.unavailable"))
             return
         await system.reconcile_user(user_id)
         quota = system.quota_status(user_id, phone)
         if quota["full"]:
             clear_state(user_id)
             await event.respond(
-                t(
-                    language,
-                    "login_unlock.manual_full",
+                t("login_unlock.manual_full",
                     used=quota["used"],
-                    limit=format_limit(quota["limit"], language),
+                    limit=format_limit(quota["limit"]),
                 ),
-                buttons=[[back_button(b"login_unlock_menu", language=language)]],
+                buttons=[[back_button(b"login_unlock_menu")]],
             )
             return
 
         rate_limit = login_code_request_rate_limiter.check(user_id)
         if not rate_limit.allowed:
             await event.respond(
-                render_login_code_rate_limit(rate_limit, language),
-                buttons=[[back_button(b"login_unlock_menu", language=language)]],
+                render_login_code_rate_limit(rate_limit),
+                buttons=[[back_button(b"login_unlock_menu")]],
             )
             return
 
         clear_state(user_id)
-        status = await event.respond(t(language, "login_unlock.manual_checking"))
+        status = await event.respond(t("login_unlock.manual_checking"))
         remember_flow_message(user_id, status)
         task = asyncio.current_task()
         _login_unlock_probe_tasks[int(user_id)] = task
@@ -275,11 +255,11 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
             raise
         except Exception:
             logger.exception("创建登录解限检测客户端失败: 用户ID=%s", user_id)
-            result = t(language, "login_unlock.manual_failed")
+            result = t("login_unlock.manual_failed")
         try:
             await status.edit(
                 result,
-                buttons=[[back_button(b"login_unlock_menu", language=language)]],
+                buttons=[[back_button(b"login_unlock_menu")]],
             )
         except asyncio.CancelledError:
             raise

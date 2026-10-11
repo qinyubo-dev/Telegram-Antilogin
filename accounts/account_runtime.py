@@ -77,25 +77,6 @@ class AccountRuntime:
             self.code_fetch_tasks,
         )
 
-    def register_task(self, registry: Dict[str, asyncio.Task], key: str, task: asyncio.Task):
-        previous = registry.get(key)
-        if previous and previous is not task and not previous.done():
-            previous.cancel()
-        registry[key] = task
-
-        def discard(done_task: asyncio.Task):
-            if registry.get(key) is done_task:
-                registry.pop(key, None)
-
-        task.add_done_callback(discard)
-        return task
-
-    async def cancel_task(self, registry: Dict[str, asyncio.Task], key: str) -> None:
-        task = registry.pop(key, None)
-        if task and not task.done():
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-
     async def close(self) -> None:
         self.ready_event.clear()
         tasks = []

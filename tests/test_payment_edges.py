@@ -190,16 +190,15 @@ def test_admin_notification_helpers_cover_guards_custom_seat_and_unknown_reason(
             notify.assert_not_awaited()
             await payment._notify_admin_new_subscription("new")
             builder = notify.await_args.args[0]
-            assert "15 席" in builder(1, "zh")
+            assert "15 席" in builder(1)
             await payment._notify_admin_order_exception("bad", "custom_reason")
             builder = notify.await_args.args[0]
-            assert "custom_reason" in builder(1, "zh")
-            assert "custom_reason" in builder(2, "en")
+            assert "custom_reason" in builder(1)
 
     run(exercise())
 
 
-def test_admin_notifications_use_each_recipient_language_and_keep_deduplication():
+def test_admin_notifications_reach_each_admin_once():
     async def exercise():
         payment = make_payment({
             "o": {
@@ -209,10 +208,7 @@ def test_admin_notifications_use_each_recipient_language_and_keep_deduplication(
             }
         })
         payment.bot = SimpleNamespace(send_message=AsyncMock())
-        with patch("payments.payment_system.config.ADMIN_IDS", [1, 2]), patch(
-            "payments.payment_system.DataManager.get_user_language",
-            side_effect=lambda admin_id: "zh" if admin_id == 1 else "en",
-        ), patch.object(payment, "_save_orders", return_value=True):
+        with patch("payments.payment_system.config.ADMIN_IDS", [1, 2]), patch.object(payment, "_save_orders", return_value=True):
             await payment._notify_admin_new_subscription("o")
             await payment._notify_admin_new_subscription("o")
         calls = payment.bot.send_message.await_args_list
@@ -380,7 +376,7 @@ def test_monitor_once_handles_invalid_legacy_review_expired_and_active_orders():
         payment, "check_order_status", new=AsyncMock(return_value={"success": True, "status": "pending"})
     ) as check:
         run(payment._monitor_pending_orders_once())
-    assert payment.pending_orders["legacy"]["auto_check_stop_reason"] == "legacy_order_missing_created_time"
+    assert payment.pending_orders["legacy"]["auto_check_stop_reason"] == "missing_created_time"
     assert payment.pending_orders["stopped"]["auto_check_stopped"]
     notify.assert_awaited_once()
     delete.assert_awaited_once_with("expired")

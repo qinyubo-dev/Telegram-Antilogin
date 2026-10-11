@@ -10,13 +10,9 @@ from handlers.bot_handlers import main_menu_buttons, more_menu_buttons
 
 
 def test_catalog_lookup_and_unknown_key():
-    assert t("zh", "main.add_account") == "添加账户"
-    assert t("anything", "main.add_account") == "添加账户"
+    assert t("main.add_account") == "添加账户"
+    assert t("main.add_account") == "添加账户"
     assert "language.menu" not in ZH
-
-
-def test_language_is_always_chinese():
-    assert DataManager.get_user_language(42) == "zh"
 
 
 def test_main_and_more_menus_have_no_language_entry(monkeypatch):

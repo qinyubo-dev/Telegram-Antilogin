@@ -87,9 +87,9 @@ def extract_zip_session_entry(zip_path: str, entry: zipfile.ZipInfo) -> str:
 
 
 def safe_archive_label(
-    name: str, max_length: int = 80, language: str = "zh"
+    name: str, max_length: int = 80
 ) -> str:
-    label = (name or t(language, "account.upload.unnamed")).replace(
+    label = (name or t("account.upload.unnamed")).replace(
         "\r", " "
     ).replace("\n", " ")
     return label if len(label) <= max_length else label[: max_length - 1] + "…"
@@ -109,7 +109,7 @@ def is_upload_size_allowed(file_name: str, size: int) -> bool:
     return limit is not None and 0 <= int(size) <= limit
 
 
-def render_zip_upload_error(error: ZipSessionUploadError, language: str = "zh") -> str:
+def render_zip_upload_error(error: ZipSessionUploadError) -> str:
     keys = {
         "invalid_zip": "account.upload.zip_invalid",
         "no_session": "account.upload.zip_empty",
@@ -122,38 +122,38 @@ def render_zip_upload_error(error: ZipSessionUploadError, language: str = "zh") 
     if not key:
         return str(error)
     values = {"count": ZIP_MAX_SESSION_FILES} if error.code == "too_many_sessions" else {}
-    return t(language, key, **values)
+    return t(key, **values)
 
 
 def render_zip_import_summary(
-    results: List[SessionImportResult], language: str = "zh"
+    results: List[SessionImportResult]
 ) -> str:
     success_results = [result for result in results if result.success]
     quota_results = [result for result in results if result.reason == 'quota_full']
     failure_results = [result for result in results if not result.success and result.reason != 'quota_full']
-    lines = [t(language, "account.upload.zip_done")]
+    lines = [t("account.upload.zip_done")]
 
     if success_results:
         lines.extend([
             "",
-            t(language, "account.upload.zip_success", count=len(success_results)),
+            t("account.upload.zip_success", count=len(success_results)),
         ])
         lines.extend(
-            f"• {result.phone or t(language, 'account.upload.unknown_phone')}"
+            f"• {result.phone or t('account.upload.unknown_phone')}"
             for result in success_results
         )
 
     if failure_results:
         lines.extend([
             "",
-            t(language, "account.upload.zip_failed", count=len(failure_results)),
+            t("account.upload.zip_failed", count=len(failure_results)),
         ])
         lines.extend(f"• {result.label}" for result in failure_results)
 
     if quota_results:
         lines.extend([
             "",
-            t(language, "account.upload.zip_quota", count=len(quota_results)),
+            t("account.upload.zip_quota", count=len(quota_results)),
         ])
         lines.extend(f"• {result.label}" for result in quota_results)
 

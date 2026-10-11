@@ -3,7 +3,6 @@
 
 """Canonical project attribution used by runtime and documentation checks."""
 
-PROJECT_NAME = "Anti-Login"
 PROJECT_AUTHOR = "秦屿泊"
 PROJECT_HANDLE = "@qinyubo"
 PROJECT_LICENSE = "MIT"

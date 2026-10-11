@@ -99,41 +99,37 @@ _SUBSCRIPTION_CONFIG_FIELDS = {
 }
 
 
-def _language(user_id: int) -> str:
-    return DataManager.get_user_language(user_id)
-
-
-def _localized_code(language: str, prefix: str, value, fallback=None) -> str:
+def _localized_code(prefix: str, value, fallback=None) -> str:
     raw = str(value if value not in (None, "") else (fallback or ""))
     try:
-        return t(language, f"{prefix}.{raw}")
+        return t(f"{prefix}.{raw}")
     except KeyError:
-        return raw or t(language, "admin.common.unknown")
+        return raw or t("admin.common.unknown")
 
 
-def _localized_reason(language: str, value) -> str:
+def _localized_reason(value) -> str:
     raw = str(value or "")
     if not raw:
-        return t(language, "admin.common.unknown")
+        return t("admin.common.unknown")
     try:
-        return t(language, f"admin.reason.{raw}")
+        return t(f"admin.reason.{raw}")
     except KeyError:
-        return localized_result(language, raw)
+        return localized_result(raw)
 
 
-def _audit_action_code(value, language: str) -> str:
+def _audit_action_code(value) -> str:
     """Resolve a localized audit action label back to its stored action code."""
     raw = str(value or "").strip()
     folded = raw.casefold()
     for action in _AUDIT_ACTION_CODES:
         if folded == action.casefold():
             return action
-        if folded == _localized_code(language, "admin.audit.action", action).casefold():
+        if folded == _localized_code("admin.audit.action", action).casefold():
             return action
     return raw
 
 
-def _parse_audit_filters(value, language: str) -> dict:
+def _parse_audit_filters(value) -> dict:
     """Parse audit filters entered by an administrator."""
     text = str(value or "").strip()
     filters = {"exclude_attempt": True}
@@ -152,11 +148,11 @@ def _parse_audit_filters(value, language: str) -> dict:
         if not parsed:
             continue
         filters[field] = (
-            _audit_action_code(parsed, language) if field == "action" else parsed
+            _audit_action_code(parsed) if field == "action" else parsed
         )
 
     if len(filters) == 1:
-        action = _audit_action_code(text, language)
+        action = _audit_action_code(text)
         if action in _AUDIT_ACTION_CODES:
             filters["action"] = action
     return filters
@@ -168,27 +164,23 @@ def _json_display(value) -> str:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
-def _format_audit_entries(entries, language: str) -> str:
-    blocks = [t(language, "admin.audit.detail_title")]
+def _format_audit_entries(entries) -> str:
+    blocks = [t("admin.audit.detail_title")]
     for index, item in enumerate(entries, 1):
-        blocks.append(t(
-            language,
-            "admin.audit.entry",
+        blocks.append(t("admin.audit.entry",
             index=index,
             timestamp=item.get("timestamp") or "-",
             admin_id=item.get("admin_id") or "-",
-            action=_localized_code(language, "admin.audit.action", item.get("action")),
-            target_type=_localized_code(
-                language, "admin.audit.target", item.get("target_type"), "system"
+            action=_localized_code("admin.audit.action", item.get("action")),
+            target_type=_localized_code("admin.audit.target", item.get("target_type"), "system"
             ),
             target_id=item.get("target_id") or "-",
-            result=_localized_code(
-                language, "admin.audit.result", item.get("result"), "attempt"
+            result=_localized_code("admin.audit.result", item.get("result"), "attempt"
             ),
             before=_json_display(item.get("before")),
             after=_json_display(item.get("after")),
             metadata=_json_display(item.get("metadata")),
-            error=_localized_reason(language, item.get("error")) if item.get("error") else "-",
+            error=_localized_reason(item.get("error")) if item.get("error") else "-",
         ))
     return "\n\n".join(blocks)
 
@@ -208,50 +200,48 @@ def _config_flow_current_value(flow, field):
     return before[flow["target"]][field]
 
 
-def _config_flow_prompt(flow, error=None, language="zh"):
+def _config_flow_prompt(flow, error=None):
     fields = _SUBSCRIPTION_CONFIG_FIELDS[flow["target"]]
     field, label_key, _value_type, example = fields[flow["index"]]
     target_name = (
-        t(language, "admin.config.long_discounts")
+        t("admin.config.long_discounts")
         if flow["target"] == "discounts" else flow["target"].upper()
     )
     prefix = f"❌ {error}\n\n" if error else ""
-    return t(
-        language,
-        "admin.config.prompt",
+    return t("admin.config.prompt",
         prefix=prefix,
         target=target_name,
         index=flow["index"] + 1,
         total=len(fields),
-        label=t(language, label_key),
+        label=t(label_key),
         current=_config_flow_current_value(flow, field),
         example=example,
     )
 
 
-def _parse_config_value(value, value_type, language="zh"):
+def _parse_config_value(value, value_type):
     text = str(value or "").strip()
     try:
         if value_type == "integer":
             if not re.fullmatch(r"\d+", text):
-                raise ValueError(t(language, "admin.config.error.positive_integer"))
+                raise ValueError(t("admin.config.error.positive_integer"))
             parsed = int(text)
             if parsed <= 0:
-                raise ValueError(t(language, "admin.config.error.gt_zero"))
+                raise ValueError(t("admin.config.error.gt_zero"))
             return parsed
         parsed = Decimal(text)
         if not parsed.is_finite():
-            raise ValueError(t(language, "admin.config.error.valid_number"))
+            raise ValueError(t("admin.config.error.valid_number"))
         if value_type == "discount":
             if parsed < 0 or parsed >= 100:
-                raise ValueError(t(language, "admin.config.error.discount_range"))
+                raise ValueError(t("admin.config.error.discount_range"))
         elif parsed <= 0:
-            raise ValueError(t(language, "admin.config.error.gt_zero"))
+            raise ValueError(t("admin.config.error.gt_zero"))
         return DataManager._decimal_text(parsed)
     except (InvalidOperation, TypeError, ValueError) as error:
         if isinstance(error, ValueError) and str(error):
             raise
-        raise ValueError(t(language, "admin.config.error.valid_number")) from error
+        raise ValueError(t("admin.config.error.valid_number")) from error
 
 
 def _config_flow_candidate(flow):
@@ -265,26 +255,24 @@ def _config_flow_candidate(flow):
     return candidate
 
 
-def _config_plan_text(catalog, plan_id, language="zh"):
+def _config_plan_text(catalog, plan_id):
     plan = catalog[plan_id]
     if plan_id == "go":
-        return t(language, "admin.config.plan.go", price=plan["price"], quota=plan["quota"])
+        return t("admin.config.plan.go", price=plan["price"], quota=plan["quota"])
     if plan_id == "plus":
-        return t(
-            language, "admin.config.plan.plus", price=plan["price"],
+        return t("admin.config.plan.plus", price=plan["price"],
             quota=plan["quota"], addon_price=plan["addon_unit_price"],
             min_addon=plan["min_addon"],
         )
-    return t(language, "admin.config.plan.pro", price=plan["price"])
+    return t("admin.config.plan.pro", price=plan["price"])
 
 
-def _config_flow_preview(flow, language="zh"):
+def _config_flow_preview(flow):
     candidate = _config_flow_candidate(flow)
     if flow["target"] == "discounts":
         def discount_text(periods):
             return "，".join(
-                t(
-                    language, "admin.config.discount_item", days=days,
+                t("admin.config.discount_item", days=days,
                     percent=periods[days]["discount_percent"],
                 )
                 for days in (90, 180, 365)
@@ -293,9 +281,9 @@ def _config_flow_preview(flow, language="zh"):
         before_text = discount_text(flow["before"])
         after_text = discount_text(candidate)
     else:
-        before_text = _config_plan_text(flow["before"], flow["target"], language)
-        after_text = _config_plan_text(candidate, flow["target"], language)
-    return t(language, "admin.config.preview", before=before_text, after=after_text)
+        before_text = _config_plan_text(flow["before"], flow["target"])
+        after_text = _config_plan_text(candidate, flow["target"])
+    return t("admin.config.preview", before=before_text, after=after_text)
 
 
 async def _get_user_display_name(bot, user_id: int):
@@ -323,7 +311,6 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
     """Handle admin text-input states. Returns True when the event was consumed."""
     user_id = event.sender_id
     state = get_state(user_id)
-    language = _language(user_id)
 
     reminder_count = state.get("admin_login_unlock_reminder_count")
     if reminder_count:
@@ -334,13 +321,11 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
             offsets = parse_schedule_offsets(event.text, int(reminder_count))
         except ReminderScheduleValidationError as error:
             await event.respond(
-                t(
-                    language,
-                    "admin.login_unlock.invalid",
-                    error=t(language, f"admin.login_unlock.error.{error.code}"),
+                t("admin.login_unlock.invalid",
+                    error=t(f"admin.login_unlock.error.{error.code}"),
                     count=reminder_count,
                 ),
-                buttons=[[back_button(b"admin_login_unlock_reminder_settings", language=language)]],
+                buttons=[[back_button(b"admin_login_unlock_reminder_settings")]],
             )
             return True
 
@@ -363,8 +348,8 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
                 error="save_failed",
             )
             await event.respond(
-                t(language, "admin.login_unlock.save_failed"),
-                buttons=[[back_button(b"admin_login_unlock_reminder_settings", language=language)]],
+                t("admin.login_unlock.save_failed"),
+                buttons=[[back_button(b"admin_login_unlock_reminder_settings")]],
             )
             return True
 
@@ -383,20 +368,18 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
             after=after,
             metadata={"recalculated": recalculated},
         )
-        schedule_text = " / ".join(format_offset(value, language) for value in offsets)
-        notice = t(
-            language,
-            "admin.login_unlock.saved",
+        schedule_text = " / ".join(format_offset(value) for value in offsets)
+        notice = t("admin.login_unlock.saved",
             count=reminder_count,
             schedule=schedule_text,
         )
         if not recalculated:
-            notice += t(language, "admin.login_unlock.recalculate_warning")
+            notice += t("admin.login_unlock.recalculate_warning")
         if not audited:
-            notice += t(language, "admin.common.audit_warning")
+            notice += t("admin.common.audit_warning")
         await event.respond(
             notice,
-            buttons=[[back_button(b"admin_login_unlock_reminder_settings", language=language)]],
+            buttons=[[back_button(b"admin_login_unlock_reminder_settings")]],
         )
         return True
 
@@ -424,8 +407,8 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
             )
             if not results:
                 await event.respond(
-                    t(language, "admin.user.no_match"),
-                    buttons=[[back_button(b"admin_panel", language=language)]],
+                    t("admin.user.no_match"),
+                    buttons=[[back_button(b"admin_panel")]],
                 )
                 return True
             set_state(
@@ -436,23 +419,22 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
             buttons = []
             for item in results:
                 label = item.get("display_name") or (
-                    f"@{item['username']}" if item.get("username") else t(
-                        language, "admin.user.fallback_name", user_id=item["user_id"]
+                    f"@{item['username']}" if item.get("username") else t("admin.user.fallback_name", user_id=item["user_id"]
                     )
                 )
                 buttons.append([Button.inline(
                     f"{label} · {item['user_id']}"[:58], f"admin_user_detail_{item['user_id']}".encode()
                 )])
-            buttons.append([back_button(b"admin_panel", language=language)])
-            warning = t(language, "admin.user.search_audit_warning") if not audited else ""
+            buttons.append([back_button(b"admin_panel")])
+            warning = t("admin.user.search_audit_warning") if not audited else ""
             await event.respond(
-                t(language, "admin.user.search_title", count=len(results), warning=warning),
+                t("admin.user.search_title", count=len(results), warning=warning),
                 buttons=buttons,
             )
         except Exception as error:
             _audit_result(audit_id, user_id, "user.search", "failed", "user", error=str(error))
             logger.exception("管理员用户搜索失败")
-            await event.respond(t(language, "admin.user.search_failed"))
+            await event.respond(t("admin.user.search_failed"))
         return True
 
     if state.get("admin_order_search"):
@@ -473,16 +455,16 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
             callback = f"admin_order_detail_{item['order_id']}".encode()
             if len(callback) <= 64:
                 buttons.append([Button.inline(
-                    f"{_order_status_text(item, language)} · {item['order_id']}"[:58], callback,
+                    f"{_order_status_text(item)} · {item['order_id']}"[:58], callback,
                 )])
         nav = pagination_buttons(
-            "admin_order_search_page", result["page"], result["max_page"], language
+            "admin_order_search_page", result["page"], result["max_page"]
         )
         if nav:
             buttons.append(nav)
-        buttons.append([back_button(b"admin_orders_all_0", language=language)])
+        buttons.append([back_button(b"admin_orders_all_0")])
         await event.respond(
-            t(language, "admin.order.search_result", count=result["total"]), buttons=buttons
+            t("admin.order.search_result", count=result["total"]), buttons=buttons
         )
         return True
 
@@ -490,21 +472,21 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
         clear_state(user_id)
         if not DataManager.is_admin(user_id):
             return True
-        filters = _parse_audit_filters(event.text, language)
+        filters = _parse_audit_filters(event.text)
         result = AdminAuditLog.query(filters, page=0, page_size=25)
         set_state(user_id, admin_audit_filters=filters)
         buttons = [
             [Button.inline(
-                f"{_localized_code(language, 'admin.audit.result', item.get('result'))} · "
-                f"{_localized_code(language, 'admin.audit.action', item.get('action'))} · "
+                f"{_localized_code('admin.audit.result', item.get('result'))} · "
+                f"{_localized_code('admin.audit.action', item.get('action'))} · "
                 f"{item.get('target_id') or '-'}",
                 f"admin_audit_detail_{item['audit_id']}".encode(),
             )]
             for item in result["items"]
         ]
-        buttons.append([back_button(b"admin_audit_0", language=language)])
+        buttons.append([back_button(b"admin_audit_0")])
         await event.respond(
-            t(language, "admin.audit.filter_result", count=result["total"]), buttons=buttons
+            t("admin.audit.filter_result", count=result["total"]), buttons=buttons
         )
         return True
 
@@ -516,25 +498,25 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
         if time.time() - float(config_flow.get("started_at", 0)) > _ADMIN_ACTION_TTL_SECONDS:
             _clear_admin_input_state(user_id)
             await event.respond(
-                t(language, "admin.config.expired_notice"),
-                buttons=[[back_button(b"admin_subscription_config", language=language)]],
+                t("admin.config.expired_notice"),
+                buttons=[[back_button(b"admin_subscription_config")]],
             )
             return True
         fields = _SUBSCRIPTION_CONFIG_FIELDS[config_flow["target"]]
         if config_flow.get("stage") != "input" or config_flow["index"] >= len(fields):
             _clear_admin_input_state(user_id)
             await event.respond(
-                t(language, "admin.config.state_invalid_notice"),
-                buttons=[[back_button(b"admin_subscription_config", language=language)]],
+                t("admin.config.state_invalid_notice"),
+                buttons=[[back_button(b"admin_subscription_config")]],
             )
             return True
         field, _label, value_type, _example = fields[config_flow["index"]]
         try:
-            parsed = _parse_config_value(event.text, value_type, language)
+            parsed = _parse_config_value(event.text, value_type)
         except ValueError as error:
             await event.respond(
-                _config_flow_prompt(config_flow, str(error), language),
-                buttons=[[back_button(b"admin_subscription_config", language=language)]],
+                _config_flow_prompt(config_flow, str(error)),
+                buttons=[[back_button(b"admin_subscription_config")]],
                 parse_mode="md",
             )
             return True
@@ -544,22 +526,22 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
         if config_flow["index"] < len(fields):
             set_state(user_id, admin_subscription_config_flow=config_flow)
             await event.respond(
-                _config_flow_prompt(config_flow, language=language),
-                buttons=[[back_button(b"admin_subscription_config", language=language)]],
+                _config_flow_prompt(config_flow),
+                buttons=[[back_button(b"admin_subscription_config")]],
                 parse_mode="md",
             )
             return True
         config_flow["stage"] = "preview"
         set_state(user_id, admin_subscription_config_flow=config_flow)
         await event.respond(
-            _config_flow_preview(config_flow, language),
+            _config_flow_preview(config_flow),
             buttons=[
                 [
-                    Button.inline(t(language, "admin.common.save"), b"admin_subscription_config_confirm"),
-                    Button.inline(t(language, "admin.common.cancel"), b"admin_subscription_config"),
+                    Button.inline(t("admin.common.save"), b"admin_subscription_config_confirm"),
+                    Button.inline(t("admin.common.cancel"), b"admin_subscription_config"),
                 ],
                 [Button.inline(
-                    t(language, "admin.config.reenter"),
+                    t("admin.config.reenter"),
                     f"admin_subscription_config_edit_{config_flow['target']}".encode(),
                 )],
             ],
@@ -573,26 +555,25 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
         parts = (event.text or "").split()
         try:
             if len(parts) not in {1, 2}:
-                raise ValueError(t(language, "admin.subscription.error.days_or_plus_quota"))
+                raise ValueError(t("admin.subscription.error.days_or_plus_quota"))
             days = int(parts[0])
             if days <= 0:
-                raise ValueError(t(language, "admin.subscription.error.days_positive"))
+                raise ValueError(t("admin.subscription.error.days_positive"))
             try:
                 datetime.now() + timedelta(days=days)
             except (OverflowError, ValueError):
-                raise ValueError(t(language, "admin.subscription.error.days_range"))
+                raise ValueError(t("admin.subscription.error.days_range"))
             if plan_id != "plus" and len(parts) != 1:
-                raise ValueError(t(
-                    language, "admin.subscription.error.quota_not_allowed",
+                raise ValueError(t("admin.subscription.error.quota_not_allowed",
                     plan=plan_id.upper(),
                 ))
             quota = int(parts[1]) if plan_id == "plus" and len(parts) == 2 else None
             quote = DataManager.quote_subscription(plan_id, quota)
         except (TypeError, ValueError) as error:
             await event.respond(
-                t(language, "admin.subscription.retry_input", error=error),
+                t("admin.subscription.retry_input", error=error),
                 buttons=[[back_button(
-                    f"admin_user_detail_{target_user_id}".encode(), language=language
+                    f"admin_user_detail_{target_user_id}".encode()
                 )]],
             )
             return True
@@ -605,8 +586,8 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
         )
         set_state(user_id, admin_user_back=user_back)
         await event.respond(
-            _grant_confirmation_text(target_user_id, quote, days, before, language),
-            buttons=_confirmation_buttons(pending, language),
+            _grant_confirmation_text(target_user_id, quote, days, before),
+            buttons=_confirmation_buttons(pending),
         )
         return True
 
@@ -659,34 +640,32 @@ def _queue_admin_action(admin_id, action, target_user_id, params, before, audit_
     return pending
 
 
-def _confirmation_buttons(pending, language="zh"):
+def _confirmation_buttons(pending):
     token = pending["token"]
     return [
         [
-            Button.inline(t(language, "admin.common.confirm"), f"admin_action_confirm_{token}".encode()),
-            Button.inline(t(language, "admin.common.cancel"), f"admin_action_cancel_{token}".encode()),
+            Button.inline(t("admin.common.confirm"), f"admin_action_confirm_{token}".encode()),
+            Button.inline(t("admin.common.cancel"), f"admin_action_cancel_{token}".encode()),
         ],
         [back_button(
-            f"admin_user_detail_{pending['target_user_id']}".encode(), language=language
+            f"admin_user_detail_{pending['target_user_id']}".encode()
         )],
     ]
 
 
-def _grant_confirmation_text(target_user_id, quote, days, before, language="zh"):
-    before_text = t(language, "admin.subscription.no_subscription")
+def _grant_confirmation_text(target_user_id, quote, days, before):
+    before_text = t("admin.subscription.no_subscription")
     if before:
-        before_text = t(
-            language, "admin.subscription.current",
+        before_text = t("admin.subscription.current",
             plan=str(before.get("plan_id") or "-").upper(),
             expires_at=str(before.get("expires_at") or "-")[:19],
         )
     quota_text = (
-        t(language, "admin.common.unlimited")
+        t("admin.common.unlimited")
         if quote["quota"] is None
-        else t(language, "admin.common.seats", count=quote["quota"])
+        else t("admin.common.seats", count=quote["quota"])
     )
-    return t(
-        language, "admin.subscription.grant_confirm", user_id=target_user_id,
+    return t("admin.subscription.grant_confirm", user_id=target_user_id,
         current=before_text, plan=quote["plan_name"], days=days, quota=quota_text,
     )
 
@@ -706,25 +685,25 @@ def _take_admin_action(admin_id, token):
     return pending, None
 
 
-def _format_timestamp(value, language="zh"):
+def _format_timestamp(value):
     try:
         return datetime.fromtimestamp(float(value)).strftime("%Y-%m-%d %H:%M:%S")
     except (TypeError, ValueError, OSError, OverflowError):
-        return t(language, "admin.common.unknown")
+        return t("admin.common.unknown")
 
 
-def _order_status_text(order, language="zh"):
+def _order_status_text(order):
     if order.get("processed"):
-        return t(language, "admin.order.status.completed")
+        return t("admin.order.status.completed")
     if order.get("needs_manual_review") or order.get("status") == "paid":
-        return t(language, "admin.order.status.review")
+        return t("admin.order.status.review")
     if order.get("status") == "pending":
-        return t(language, "admin.order.status.pending")
+        return t("admin.order.status.pending")
     if order.get("status") == "expired":
-        return t(language, "admin.order.status.expired")
+        return t("admin.order.status.expired")
     if order.get("status") == "cancelled":
-        return t(language, "admin.order.status.cancelled")
-    return str(order.get("status") or t(language, "admin.common.unknown"))
+        return t("admin.order.status.cancelled")
+    return str(order.get("status") or t("admin.common.unknown"))
 
 
 def _known_user_ids(payment_system: PaymentSystem):
@@ -846,26 +825,24 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             return "0"
         return " · ".join(f"{amount} {coin}" for coin, amount in amounts.items())
 
-    def _report_text(days, language):
+    def _report_text(days):
         report = payment_system.get_admin_report(days) if payment_system else {
             "amounts": {}, "new_paid_users": 0, "start_time": time.time(), "end_time": time.time()
         }
-        return t(
-            language, "admin.report.text",
-            title=t(language, f"admin.report.title.{days}"),
+        return t("admin.report.text",
+            title=t(f"admin.report.title.{days}"),
             revenue=_format_amounts(report["amounts"]),
             new_paid_users=report["new_paid_users"],
-            start_time=_format_timestamp(report["start_time"], language),
-            end_time=_format_timestamp(report["end_time"], language),
+            start_time=_format_timestamp(report["start_time"]),
+            end_time=_format_timestamp(report["end_time"]),
         )
 
     async def _render_admin_panel(event):
         """渲染管理面板，并结束未完成的管理员输入流程。"""
         user_id = event.sender_id
-        language = _language(user_id)
 
         if not DataManager.is_admin(user_id):
-            await event.answer(t(language, "admin.access_denied"), alert=True)
+            await event.answer(t("admin.access_denied"), alert=True)
             return False
 
         _clear_admin_state(user_id)
@@ -893,8 +870,7 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
 
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        text = t(
-            language, "admin.panel.text", total_accounts=total_accounts,
+        text = t("admin.panel.text", total_accounts=total_accounts,
             protected_accounts=protected_accounts, total_vips=total_vips,
             review_orders=review_orders,
             revenue=_format_amounts(today_report["amounts"]),
@@ -902,12 +878,12 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         )
 
         buttons = [
-            [Button.inline(t(language, "admin.panel.orders"), b"admin_orders_review_0", icon=5877485980901971030), Button.inline(t(language, "admin.panel.user_search"), b"admin_user_search", icon=5874960879434338403)],
-            [Button.inline(t(language, "admin.panel.grant"), b"admin_subscription_grant_help", icon=5775937998948404844), Button.inline(t(language, "admin.panel.delete"), b"admin_subscription_delete_help", icon=5879896690210639947)],
-            [Button.inline(t(language, "admin.panel.subscribers"), b"admin_list_vip", icon=5960551395730919906), Button.inline(t(language, "admin.panel.config"), b"admin_subscription_config", icon=5879841310902324730)],
-            [Button.inline(t(language, "admin.panel.report"), b"admin_report_1", icon=5994378914636500516), Button.inline(t(language, "admin.panel.audit"), b"admin_audit_0", icon=5877597667231534929)],
-            [Button.inline(t(language, "admin.panel.reminders"), b"admin_reminder_settings", icon=5909201569898827582), Button.inline(t(language, "admin.panel.refresh"), b"admin_panel", icon=5877410604225924969)],
-            [back_button(b"back_to_main", language=language)]
+            [Button.inline(t("admin.panel.orders"), b"admin_orders_review_0", icon=5877485980901971030), Button.inline(t("admin.panel.user_search"), b"admin_user_search", icon=5874960879434338403)],
+            [Button.inline(t("admin.panel.grant"), b"admin_subscription_grant_help", icon=5775937998948404844), Button.inline(t("admin.panel.delete"), b"admin_subscription_delete_help", icon=5879896690210639947)],
+            [Button.inline(t("admin.panel.subscribers"), b"admin_list_vip", icon=5960551395730919906), Button.inline(t("admin.panel.config"), b"admin_subscription_config", icon=5879841310902324730)],
+            [Button.inline(t("admin.panel.report"), b"admin_report_1", icon=5994378914636500516), Button.inline(t("admin.panel.audit"), b"admin_audit_0", icon=5877597667231534929)],
+            [Button.inline(t("admin.panel.reminders"), b"admin_reminder_settings", icon=5909201569898827582), Button.inline(t("admin.panel.refresh"), b"admin_panel", icon=5877410604225924969)],
+            [back_button(b"back_to_main")]
         ]
 
         try:
@@ -925,28 +901,26 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         _clear_admin_input_state(event.sender_id)
-        language = _language(event.sender_id)
         days = int(event.data.decode().rsplit("_", 1)[1])
         await event.answer()
         await safe_edit(
             event,
-            _report_text(days, language),
+            _report_text(days),
             buttons=[
                 [
-                    Button.inline(t(language, "admin.report.tab.1"), b"admin_report_1"),
-                    Button.inline(t(language, "admin.report.tab.7"), b"admin_report_7"),
-                    Button.inline(t(language, "admin.report.tab.30"), b"admin_report_30"),
+                    Button.inline(t("admin.report.tab.1"), b"admin_report_1"),
+                    Button.inline(t("admin.report.tab.7"), b"admin_report_7"),
+                    Button.inline(t("admin.report.tab.30"), b"admin_report_30"),
                 ],
-                [back_button(b"admin_panel", language=language)],
+                [back_button(b"admin_panel")],
             ],
         )
 
     async def _render_order_list(event, category="review", page=0, query="", answer=True):
         _clear_admin_input_state(event.sender_id)
-        language = _language(event.sender_id)
         if not payment_system:
             if answer:
-                await event.answer(t(language, "admin.common.payment_unavailable"), alert=True)
+                await event.answer(t("admin.common.payment_unavailable"), alert=True)
             return
         result = payment_system.list_admin_orders(category, query=query, page=page, page_size=20)
         set_state(
@@ -966,38 +940,37 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         )
         buttons = [
             [
-                Button.inline(t(language, "admin.order.tab.review"), b"admin_orders_review_0"),
-                Button.inline(t(language, "admin.order.tab.active"), b"admin_orders_active_0"),
-                Button.inline(t(language, "admin.order.tab.completed"), b"admin_orders_completed_0"),
+                Button.inline(t("admin.order.tab.review"), b"admin_orders_review_0"),
+                Button.inline(t("admin.order.tab.active"), b"admin_orders_active_0"),
+                Button.inline(t("admin.order.tab.completed"), b"admin_orders_completed_0"),
             ],
             [
-                Button.inline(t(language, "admin.order.tab.closed"), b"admin_orders_closed_0"),
-                Button.inline(t(language, "admin.order.tab.all"), b"admin_orders_all_0"),
-                Button.inline(t(language, "admin.order.search_button"), b"admin_order_search"),
+                Button.inline(t("admin.order.tab.closed"), b"admin_orders_closed_0"),
+                Button.inline(t("admin.order.tab.all"), b"admin_orders_all_0"),
+                Button.inline(t("admin.order.search_button"), b"admin_order_search"),
             ],
         ]
         for item in result["items"]:
             order_id = item["order_id"]
             label = (
-                f"{_order_status_text(item, language)} · {order_id} · "
+                f"{_order_status_text(item)} · {order_id} · "
                 f"{item.get('amount', '?')} {item.get('coin', '')}"
             )
             callback = f"admin_order_detail_{order_id}".encode()
             if len(callback) <= 64:
                 buttons.append([Button.inline(label[:58], callback)])
         prefix = "admin_order_search_page" if query else f"admin_orders_{category}"
-        nav = pagination_buttons(prefix, result["page"], result["max_page"], language)
+        nav = pagination_buttons(prefix, result["page"], result["max_page"])
         if nav:
             buttons.append(nav)
-        buttons.append([back_button(b"admin_panel", language=language)])
+        buttons.append([back_button(b"admin_panel")])
         if answer:
             await event.answer()
-        suffix = t(language, "admin.order.search_suffix") if query else ""
+        suffix = t("admin.order.search_suffix") if query else ""
         await edit_or_respond(
             event,
-            t(
-                language, "admin.order.list",
-                title=t(language, f"admin.order.category.{category}"),
+            t("admin.order.list",
+                title=t(f"admin.order.category.{category}"),
                 total=result["total"], page=result["page"] + 1,
                 pages=result["max_page"] + 1, suffix=suffix,
             ),
@@ -1006,7 +979,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
 
     async def _render_order_detail(event, order_id, answer=True):
         _clear_admin_input_state(event.sender_id)
-        language = _language(event.sender_id)
         if not payment_system:
             return
         order = payment_system.get_order_snapshot(order_id)
@@ -1014,44 +986,42 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not order:
             _audit_result(audit_id, event.sender_id, "order.detail", "failed", "order", order_id, error="not_found")
             if answer:
-                await event.answer(t(language, "admin.order.not_found"), alert=True)
+                await event.answer(t("admin.order.not_found"), alert=True)
             return
         _audit_result(audit_id, event.sender_id, "order.detail", "success", "order", order_id)
-        unknown = t(language, "admin.common.unknown")
-        lines = [t(
-            language, "admin.order.detail", order_id=order_id,
-            status=_order_status_text(order, language),
+        unknown = t("admin.common.unknown")
+        lines = [t("admin.order.detail", order_id=order_id,
+            status=_order_status_text(order),
             user_id=order.get("user_id", unknown), order_type=order.get("type", unknown),
             amount=order.get("amount", unknown), coin=order.get("coin", ""),
             plan=str(order.get("plan_id", "-")).upper(),
             days=order.get("period_days", "-"),
-            created=_format_timestamp(order.get("created_time"), language),
-            verified=_format_timestamp(order.get("verified_time"), language),
-            fulfilled=_format_timestamp(order.get("fulfilled_time"), language),
+            created=_format_timestamp(order.get("created_time")),
+            verified=_format_timestamp(order.get("verified_time")),
+            fulfilled=_format_timestamp(order.get("fulfilled_time")),
         )]
         reason = order.get("manual_review_reason") or order.get("payment_validation_error")
         if reason:
-            lines.extend(["", t(
-                language, "admin.order.reason", reason=_localized_reason(language, reason)
+            lines.extend(["", t("admin.order.reason", reason=_localized_reason(reason)
             )])
         retry = payment_system.get_order_retry_snapshot(order_id)
         if retry:
-            lines.append(t(language, "admin.order.retry_failures", count=int(retry.get("failures", 0))))
-            lines.append(t(language, "admin.order.next_check", time=_format_timestamp(retry.get("next_check_at"), language)))
+            lines.append(t("admin.order.retry_failures", count=int(retry.get("failures", 0))))
+            lines.append(t("admin.order.next_check", time=_format_timestamp(retry.get("next_check_at"))))
         buttons = []
         if not order.get("processed") and order.get("status", "pending") == "pending":
             callback = f"admin_order_check_{order_id}".encode()
             if len(callback) <= 64:
-                buttons.append([Button.inline(t(language, "admin.order.recheck"), callback)])
+                buttons.append([Button.inline(t("admin.order.recheck"), callback)])
         if not order.get("processed") and order.get("status") == "paid":
             callback = f"admin_order_retry_{order_id}".encode()
             confirm_callback = f"admin_order_retry_confirm_{order_id}".encode()
             if len(callback) <= 64 and len(confirm_callback) <= 64:
-                buttons.append([Button.inline(t(language, "admin.order.retry"), callback)])
+                buttons.append([Button.inline(t("admin.order.retry"), callback)])
         back_target = get_state(event.sender_id).get(
             "admin_order_back", "admin_orders_review_0"
         )
-        buttons.append([back_button(str(back_target).encode(), language=language)])
+        buttons.append([back_button(str(back_target).encode())])
         if answer:
             await event.answer()
         await safe_edit(event, "\n".join(lines), buttons=buttons)
@@ -1068,12 +1038,11 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         set_state(event.sender_id, admin_order_search=True)
-        language = _language(event.sender_id)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.order.search_prompt"),
-            buttons=[[back_button(b"admin_orders_all_0", language=language)]],
+            t("admin.order.search_prompt"),
+            buttons=[[back_button(b"admin_orders_all_0")]],
         )
 
     @bot.on(events.CallbackQuery(pattern=rb"admin_order_search_page_\d+"))
@@ -1096,10 +1065,9 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True) or not payment_system:
             return
         order_id = event.data.decode().removeprefix("admin_order_check_")
-        language = _language(event.sender_id)
         before = payment_system.get_order_snapshot(order_id)
         audit_id = AdminAuditLog.record_attempt(event.sender_id, "order.recheck", "order", order_id)
-        await event.answer(t(language, "admin.order.checking"))
+        await event.answer(t("admin.order.checking"))
         result = await payment_system.check_order_status(order_id)
         audited = _audit_result(
             audit_id, event.sender_id, "order.recheck",
@@ -1113,26 +1081,25 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         )
         await _render_order_detail(event, order_id, answer=False)
         if not audited:
-            await event.respond(t(language, "admin.order.check_audit_warning"))
+            await event.respond(t("admin.order.check_audit_warning"))
 
     @bot.on(events.CallbackQuery(pattern=rb"^admin_order_retry_(?!confirm_).+$"))
     async def admin_order_retry_prompt(event):
         if not await require_admin(event, alert=True) or not payment_system:
             return
         order_id = event.data.decode().removeprefix("admin_order_retry_")
-        language = _language(event.sender_id)
         order = payment_system.get_order_snapshot(order_id)
         if not order or order.get("processed") or order.get("status") != "paid":
-            await event.answer(t(language, "admin.order.state_changed"), alert=True)
+            await event.answer(t("admin.order.state_changed"), alert=True)
             return
         callback = f"admin_order_retry_confirm_{order_id}".encode()
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.order.retry_prompt", order_id=order_id, user_id=order.get("user_id")),
+            t("admin.order.retry_prompt", order_id=order_id, user_id=order.get("user_id")),
             buttons=[
-                [Button.inline(t(language, "admin.order.confirm_retry"), callback)],
-                [back_button(f"admin_order_detail_{order_id}".encode(), language=language)],
+                [Button.inline(t("admin.order.confirm_retry"), callback)],
+                [back_button(f"admin_order_detail_{order_id}".encode())],
             ],
         )
 
@@ -1141,7 +1108,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True) or not payment_system:
             return
         order_id = event.data.decode().removeprefix("admin_order_retry_confirm_")
-        language = _language(event.sender_id)
         before = payment_system.get_order_snapshot(order_id)
         audit_id = AdminAuditLog.record_attempt(event.sender_id, "order.retry_fulfillment", "order", order_id)
         if not before or before.get("processed") or before.get("status") != "paid":
@@ -1149,9 +1115,9 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 audit_id, event.sender_id, "order.retry_fulfillment", "failed",
                 "order", order_id, error="order_state_changed",
             )
-            await event.answer(t(language, "admin.order.state_changed"), alert=True)
+            await event.answer(t("admin.order.state_changed"), alert=True)
             return
-        await event.answer(t(language, "admin.order.retrying"))
+        await event.answer(t("admin.order.retrying"))
         success = await payment_system.process_paid_order(order_id)
         after = payment_system.get_order_snapshot(order_id) or {}
         audited = _audit_result(
@@ -1163,28 +1129,27 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         )
         await _render_order_detail(event, order_id, answer=False)
         if not audited:
-            await event.respond(t(language, "admin.order.retry_audit_warning"))
+            await event.respond(t("admin.order.retry_audit_warning"))
 
     @bot.on(events.CallbackQuery(pattern=rb"admin_action_cancel_[0-9a-f]+"))
     async def admin_action_cancel(event):
         if not await require_admin(event, alert=True):
             return
         token = event.data.decode().removeprefix("admin_action_cancel_")
-        language = _language(event.sender_id)
         pending, error = _take_admin_action(event.sender_id, token)
         if not pending:
-            await event.answer(t(language, "admin.common.expired_or_processed"), alert=True)
+            await event.answer(t("admin.common.expired_or_processed"), alert=True)
             return
         _audit_result(
             pending["audit_id"], event.sender_id, pending["audit_action"], "cancelled",
             pending["target_type"], pending["target_user_id"],
             before=pending["before"], error="cancelled_by_admin",
         )
-        await event.answer(t(language, "admin.common.cancelled"))
+        await event.answer(t("admin.common.cancelled"))
         await safe_edit(
-            event, t(language, "admin.common.cancelled_text"),
+            event, t("admin.common.cancelled_text"),
             buttons=[[back_button(
-                f"admin_user_detail_{pending['target_user_id']}".encode(), language=language
+                f"admin_user_detail_{pending['target_user_id']}".encode()
             )]],
         )
 
@@ -1192,13 +1157,12 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     async def admin_action_confirm(event):
         if not await require_admin(event, alert=True):
             return
-        language = _language(event.sender_id)
         token = event.data.decode().removeprefix("admin_action_confirm_")
         pending, error = _take_admin_action(event.sender_id, token)
         if not pending:
             await event.answer(
-                t(language, "admin.common.confirm_expired")
-                if error == "expired" else t(language, "admin.common.expired_or_processed"),
+                t("admin.common.confirm_expired")
+                if error == "expired" else t("admin.common.expired_or_processed"),
                 alert=True,
             )
             return
@@ -1218,9 +1182,9 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 "user", target_user_id, before=pending["before"], after=current,
                 error="target_state_changed",
             )
-            await event.answer(t(language, "admin.common.state_changed"), alert=True)
+            await event.answer(t("admin.common.state_changed"), alert=True)
             return
-        await event.answer(t(language, "admin.common.running"))
+        await event.answer(t("admin.common.running"))
         try:
             if pending["action"] == "subscription.grant":
                 params = pending["params"]
@@ -1231,7 +1195,7 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 if not success:
                     raise RuntimeError("grant_conflict_or_save_failed")
                 metadata = copy.deepcopy(params)
-                message = t(language, "admin.subscription.changed")
+                message = t("admin.subscription.changed")
             elif pending["action"] == "subscription.delete":
                 try:
                     suspended = await AccountManager.suspend_user_accounts(target_user_id)
@@ -1243,7 +1207,7 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                     raise RuntimeError("delete_save_failed")
                 after = None
                 metadata = {"suspended_accounts": suspended}
-                message = t(language, "admin.subscription.deleted", count=suspended)
+                message = t("admin.subscription.deleted", count=suspended)
             elif pending["action"] == "accounts.suspend":
                 try:
                     suspended = await AccountManager.suspend_user_accounts(target_user_id)
@@ -1252,7 +1216,7 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                     raise
                 after = current
                 metadata = {"suspended_accounts": suspended}
-                message = t(language, "admin.subscription.accounts_suspended", count=suspended)
+                message = t("admin.subscription.accounts_suspended", count=suspended)
             else:
                 raise RuntimeError("unknown_action")
         except Exception as exc:
@@ -1262,9 +1226,9 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             )
             logger.exception("管理员确认操作失败: %s", pending["action"])
             await safe_edit(
-                event, t(language, "admin.common.failed_safe"),
+                event, t("admin.common.failed_safe"),
                 buttons=[[back_button(
-                    f"admin_user_detail_{target_user_id}".encode(), language=language
+                    f"admin_user_detail_{target_user_id}".encode()
                 )]],
             )
             return
@@ -1274,11 +1238,11 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             metadata=metadata,
         )
         if not audited:
-            message += "\n" + t(language, "admin.common.audit_warning")
+            message += "\n" + t("admin.common.audit_warning")
         await safe_edit(
             event, message,
             buttons=[[back_button(
-                f"admin_user_detail_{target_user_id}".encode(), language=language
+                f"admin_user_detail_{target_user_id}".encode()
             )]],
         )
 
@@ -1286,44 +1250,41 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     async def admin_user_search(event):
         if not await require_admin(event, alert=True):
             return
-        language = _language(event.sender_id)
         set_state(event.sender_id, admin_user_search=True)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.user.search_prompt"),
-            buttons=[[back_button(b"admin_panel", language=language)]],
+            t("admin.user.search_prompt"),
+            buttons=[[back_button(b"admin_panel")]],
         )
 
     @bot.on(events.CallbackQuery(pattern=b"admin_user_search_results"))
     async def admin_user_search_results(event):
         if not await require_admin(event, alert=True):
             return
-        language = _language(event.sender_id)
         results = get_state(event.sender_id).get("admin_user_results") or []
         if not results:
-            await event.answer(t(language, "admin.user.search_expired"), alert=True)
+            await event.answer(t("admin.user.search_expired"), alert=True)
             return
         buttons = []
         for item in results:
             label = item.get("display_name") or (
                 f"@{item['username']}" if item.get("username")
-                else t(language, "admin.user.fallback_name", user_id=item["user_id"])
+                else t("admin.user.fallback_name", user_id=item["user_id"])
             )
             buttons.append([Button.inline(
                 f"{label} · {item['user_id']}"[:58],
                 f"admin_user_detail_{item['user_id']}".encode(),
             )])
-        buttons.append([back_button(b"admin_panel", language=language)])
+        buttons.append([back_button(b"admin_panel")])
         await event.answer()
         await safe_edit(
-            event, t(language, "admin.user.search_title", count=len(results), warning=""),
+            event, t("admin.user.search_title", count=len(results), warning=""),
             buttons=buttons,
         )
 
     async def _render_user_detail(event, target_user_id, answer=True):
         _clear_admin_input_state(event.sender_id)
-        language = _language(event.sender_id)
         audit_id = AdminAuditLog.record_attempt(event.sender_id, "user.detail", "user", target_user_id)
         await _get_user_display_name(bot, target_user_id)
         profile = UserProfileCache.get_profile(target_user_id) or {}
@@ -1336,46 +1297,43 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             else "admin.user.role.subscriber" if active else "admin.user.role.regular"
         )
         quota_text = (
-            t(language, "admin.common.unlimited") if quota is None else str(quota)
+            t("admin.common.unlimited") if quota is None else str(quota)
         )
-        lines = [t(
-            language, "admin.user.detail",
-            name=profile.get("display_name") or t(language, "admin.common.unknown"),
-            username="@" + profile["username"] if profile.get("username") else t(language, "admin.common.none"),
-            user_id=target_user_id, role=t(language, role_key),
-            plan=subscription.get("plan_name") or subscription.get("plan_id") or t(language, "admin.common.none"),
+        lines = [t("admin.user.detail",
+            name=profile.get("display_name") or t("admin.common.unknown"),
+            username="@" + profile["username"] if profile.get("username") else t("admin.common.none"),
+            user_id=target_user_id, role=t(role_key),
+            plan=subscription.get("plan_name") or subscription.get("plan_id") or t("admin.common.none"),
             expires_at=str(subscription.get("expires_at") or "-")[:19],
             quota=quota_text, used=len(accounts),
         )]
         scheduled = subscription.get("scheduled")
         if scheduled:
             scheduled_quota = (
-                t(language, "admin.common.unlimited")
+                t("admin.common.unlimited")
                 if scheduled.get("quota") is None
-                else t(language, "admin.common.seats", count=scheduled.get("quota"))
+                else t("admin.common.seats", count=scheduled.get("quota"))
             )
-            lines.append(t(
-                language, "admin.user.scheduled",
+            lines.append(t("admin.user.scheduled",
                 plan=str(scheduled.get("plan_id", "")).upper(), quota=scheduled_quota,
             ))
-        lines.extend(["", t(language, "admin.user.hosted_accounts")])
+        lines.extend(["", t("admin.user.hosted_accounts")])
         if accounts:
             for phone, account in list(accounts.items())[:40]:
-                health = _localized_code(
-                    language, "admin.account.status",
+                health = _localized_code("admin.account.status",
                     account.get("health_status") or account.get("runtime_status"), "unknown",
                 )
                 status = "🟢" if account.get("anti_login") else "🔴"
                 lines.append(f"{status} {account.get('display_phone', phone)} · {health}")
             if len(accounts) > 40:
-                lines.append(t(language, "admin.user.more_accounts", count=len(accounts) - 40))
+                lines.append(t("admin.user.more_accounts", count=len(accounts) - 40))
         else:
-            lines.append(t(language, "admin.user.no_accounts"))
+            lines.append(t("admin.user.no_accounts"))
         orders = payment_system.get_user_order_summaries(target_user_id, 5) if payment_system else {"total": 0, "items": []}
-        lines.extend(["", t(language, "admin.user.order_count", count=orders["total"])])
+        lines.extend(["", t("admin.user.order_count", count=orders["total"])])
         for order in orders["items"]:
             lines.append(
-                f"• {_order_status_text(order, language)} · {order['order_id']} · "
+                f"• {_order_status_text(order)} · {order['order_id']} · "
                 f"{order.get('amount', '?')} {order.get('coin', '')}"
             )
         audited = _audit_result(
@@ -1383,24 +1341,24 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             metadata={"hosting_count": len(accounts), "order_count": orders["total"]},
         )
         if not audited:
-            lines.extend(["", t(language, "admin.common.query_audit_warning")])
+            lines.extend(["", t("admin.common.query_audit_warning")])
         buttons = []
         primary_buttons = []
         is_admin_target = DataManager.is_admin(target_user_id)
         if not is_admin_target:
             if subscription:
                 primary_buttons.append(Button.inline(
-                    t(language, "admin.user.manage_subscription"),
+                    t("admin.user.manage_subscription"),
                     f"admin_user_subscription_{target_user_id}".encode(),
                 ))
             else:
                 primary_buttons.append(Button.inline(
-                    t(language, "admin.user.grant_subscription"),
+                    t("admin.user.grant_subscription"),
                     f"admin_user_sub_{target_user_id}".encode(),
                 ))
         if orders["total"]:
             primary_buttons.append(Button.inline(
-                t(language, "admin.user.orders_button", count=orders["total"]),
+                t("admin.user.orders_button", count=orders["total"]),
                 f"admin_user_orders_{target_user_id}_0".encode(),
             ))
         if primary_buttons:
@@ -1412,12 +1370,12 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if accounts or resumable_count:
             buttons.append([
                 Button.inline(
-                    t(language, "admin.user.account_actions"),
+                    t("admin.user.account_actions"),
                     f"admin_user_accounts_{target_user_id}".encode(),
                 )
             ])
         user_back = get_state(event.sender_id).get("admin_user_back", "admin_panel")
-        buttons.append([back_button(str(user_back).encode(), language=language)])
+        buttons.append([back_button(str(user_back).encode())])
         if answer:
             await event.answer()
         await safe_edit(event, "\n".join(lines), buttons=buttons)
@@ -1434,38 +1392,34 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         target_user_id = int(event.data.decode().removeprefix("admin_user_subscription_"))
-        language = _language(event.sender_id)
         if DataManager.is_admin(target_user_id):
-            await event.answer(t(language, "admin.user.subscription_admin"), alert=True)
+            await event.answer(t("admin.user.subscription_admin"), alert=True)
             return
         subscription = DataManager.get_subscription(target_user_id, include_inactive=True)
         if not subscription:
             await admin_user_sub(event, target_user_id)
             return
-        status = t(
-            language,
-            "admin.user.subscription_active" if subscription.get("active")
+        status = t("admin.user.subscription_active" if subscription.get("active")
             else "admin.user.subscription_expired",
         )
         plan = str(subscription.get("plan_name") or subscription.get("plan_id") or "-").upper()
         await event.answer()
         await safe_edit(
             event,
-            t(
-                language, "admin.user.subscription_text", user_id=target_user_id,
+            t("admin.user.subscription_text", user_id=target_user_id,
                 status=status, plan=plan,
                 expires_at=str(subscription.get("expires_at") or "-")[:19],
             ),
             buttons=[
                 [Button.inline(
-                    t(language, "admin.user.extend_subscription"),
+                    t("admin.user.extend_subscription"),
                     f"admin_user_sub_{target_user_id}".encode(),
                 )],
                 [Button.inline(
-                    t(language, "admin.user.delete_subscription"),
+                    t("admin.user.delete_subscription"),
                     f"admin_user_delete_{target_user_id}".encode(),
                 )],
-                [back_button(f"admin_user_detail_{target_user_id}".encode(), language=language)],
+                [back_button(f"admin_user_detail_{target_user_id}".encode())],
             ],
         )
 
@@ -1474,7 +1428,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         target_user_id = int(event.data.decode().removeprefix("admin_user_accounts_"))
-        language = _language(event.sender_id)
         accounts = user_accounts.get(target_user_id, {}) or {}
         subscription = DataManager.get_subscription(target_user_id, include_inactive=True)
         resumable_count = _resumable_account_count(
@@ -1483,25 +1436,24 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         buttons = []
         if accounts:
             buttons.append([Button.inline(
-                t(language, "admin.user.reload"),
+                t("admin.user.reload"),
                 f"admin_user_reload_{target_user_id}".encode(),
             )])
         if resumable_count:
             buttons.append([Button.inline(
-                t(language, "admin.user.resume"),
+                t("admin.user.resume"),
                 f"admin_user_resume_{target_user_id}".encode(),
             )])
         if accounts:
             buttons.append([Button.inline(
-                t(language, "admin.user.suspend"),
+                t("admin.user.suspend"),
                 f"admin_user_suspend_{target_user_id}".encode(),
             )])
-        buttons.append([back_button(f"admin_user_detail_{target_user_id}".encode(), language=language)])
+        buttons.append([back_button(f"admin_user_detail_{target_user_id}".encode())])
         await event.answer()
         await safe_edit(
             event,
-            t(
-                language, "admin.user.accounts_text", user_id=target_user_id,
+            t("admin.user.accounts_text", user_id=target_user_id,
                 running=len(accounts), resumable=resumable_count,
             ),
             buttons=buttons,
@@ -1513,18 +1465,17 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             return
         if target_user_id is None:
             target_user_id = int(event.data.decode().removeprefix("admin_user_sub_"))
-        language = _language(event.sender_id)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.user.choose_plan", user_id=target_user_id),
+            t("admin.user.choose_plan", user_id=target_user_id),
             buttons=[
                 [
                     Button.inline("GO", f"admin_user_plan_{target_user_id}_go".encode()),
                     Button.inline("PLUS", f"admin_user_plan_{target_user_id}_plus".encode()),
                     Button.inline("PRO", f"admin_user_plan_{target_user_id}_pro".encode()),
                 ],
-                [back_button(f"admin_user_detail_{target_user_id}".encode(), language=language)],
+                [back_button(f"admin_user_detail_{target_user_id}".encode())],
             ],
         )
 
@@ -1534,20 +1485,19 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             return
         match = re.fullmatch(r"admin_user_plan_(\d+)_(go|plus|pro)", event.data.decode())
         target_user_id, plan_id = int(match.group(1)), match.group(2)
-        language = _language(event.sender_id)
         set_state(
             event.sender_id, admin_user_subscription_input=True,
             target_user_id=target_user_id, plan_id=plan_id,
             admin_user_back=get_state(event.sender_id).get("admin_user_back", "admin_panel"),
         )
-        prompt = t(language, "admin.user.days_prompt")
+        prompt = t("admin.user.days_prompt")
         if plan_id == "plus":
-            prompt += t(language, "admin.user.plus_days_prompt")
+            prompt += t("admin.user.plus_days_prompt")
         await event.answer()
         await safe_edit(
             event, prompt,
             buttons=[[back_button(
-                f"admin_user_detail_{target_user_id}".encode(), language=language
+                f"admin_user_detail_{target_user_id}".encode()
             )]],
             parse_mode="md",
         )
@@ -1557,10 +1507,9 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         target_user_id = int(event.data.decode().removeprefix("admin_user_delete_"))
-        language = _language(event.sender_id)
         before = DataManager.get_subscription(target_user_id, include_inactive=True)
         if not before:
-            await event.answer(t(language, "admin.user.no_subscription"), alert=True)
+            await event.answer(t("admin.user.no_subscription"), alert=True)
             return
         pending = _queue_admin_action(
             event.sender_id, "subscription.delete", target_user_id,
@@ -1569,12 +1518,11 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         await event.answer()
         await safe_edit(
             event,
-            t(
-                language, "admin.user.delete_confirm", user_id=target_user_id,
+            t("admin.user.delete_confirm", user_id=target_user_id,
                 plan=str(before.get("plan_id") or "-").upper(),
                 expires_at=str(before.get("expires_at") or "-")[:19],
             ),
-            buttons=_confirmation_buttons(pending, language),
+            buttons=_confirmation_buttons(pending),
         )
 
     @bot.on(events.CallbackQuery(pattern=rb"admin_user_reload_\d+"))
@@ -1582,11 +1530,10 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         target_user_id = int(event.data.decode().removeprefix("admin_user_reload_"))
-        language = _language(event.sender_id)
         audit_id = AdminAuditLog.record_attempt(
             event.sender_id, "accounts.reload", "user", target_user_id
         )
-        await event.answer(t(language, "admin.user.reconnecting"))
+        await event.answer(t("admin.user.reconnecting"))
         try:
             result = await AccountManager.reload_user_accounts_detail(
                 target_user_id, source="manual_reload"
@@ -1598,8 +1545,8 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             )
             logger.exception("管理员重连用户账户失败: %s", target_user_id)
             await safe_edit(
-                event, t(language, "admin.user.reload_failed"),
-                buttons=[[back_button(f"admin_user_detail_{target_user_id}".encode(), language=language)]],
+                event, t("admin.user.reload_failed"),
+                buttons=[[back_button(f"admin_user_detail_{target_user_id}".encode())]],
             )
             return
         _audit_result(
@@ -1608,11 +1555,10 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         )
         await safe_edit(
             event,
-            t(
-                language, "admin.user.reload_done", total=result.get("total", 0),
+            t("admin.user.reload_done", total=result.get("total", 0),
                 success=result.get("success", 0), failed=result.get("failed", 0),
             ),
-            buttons=[[back_button(f"admin_user_detail_{target_user_id}".encode(), language=language)]],
+            buttons=[[back_button(f"admin_user_detail_{target_user_id}".encode())]],
         )
 
     @bot.on(events.CallbackQuery(pattern=rb"admin_user_suspend_\d+"))
@@ -1620,7 +1566,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         target_user_id = int(event.data.decode().removeprefix("admin_user_suspend_"))
-        language = _language(event.sender_id)
         before = DataManager.get_subscription(target_user_id, include_inactive=True)
         pending = _queue_admin_action(
             event.sender_id, "accounts.suspend", target_user_id,
@@ -1629,11 +1574,10 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         await event.answer()
         await safe_edit(
             event,
-            t(
-                language, "admin.user.suspend_confirm", user_id=target_user_id,
+            t("admin.user.suspend_confirm", user_id=target_user_id,
                 count=len(user_accounts.get(target_user_id, {})),
             ),
-            buttons=_confirmation_buttons(pending, language),
+            buttons=_confirmation_buttons(pending),
         )
 
     @bot.on(events.CallbackQuery(pattern=rb"admin_user_resume_\d+"))
@@ -1641,11 +1585,10 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         target_user_id = int(event.data.decode().removeprefix("admin_user_resume_"))
-        language = _language(event.sender_id)
         audit_id = AdminAuditLog.record_attempt(
             event.sender_id, "accounts.resume", "user", target_user_id
         )
-        await event.answer(t(language, "admin.user.resuming"))
+        await event.answer(t("admin.user.resuming"))
         try:
             resumed = await AccountManager.resume_selected_accounts(target_user_id)
         except Exception as error:
@@ -1654,8 +1597,8 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 target_user_id, error=str(error),
             )
             await safe_edit(
-                event, t(language, "admin.user.resume_failed"),
-                buttons=[[back_button(f"admin_user_detail_{target_user_id}".encode(), language=language)]],
+                event, t("admin.user.resume_failed"),
+                buttons=[[back_button(f"admin_user_detail_{target_user_id}".encode())]],
             )
             return
         _audit_result(
@@ -1663,8 +1606,8 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             target_user_id, metadata={"resumed_accounts": resumed},
         )
         await safe_edit(
-            event, t(language, "admin.user.resume_done", count=resumed),
-            buttons=[[back_button(f"admin_user_detail_{target_user_id}".encode(), language=language)]],
+            event, t("admin.user.resume_done", count=resumed),
+            buttons=[[back_button(f"admin_user_detail_{target_user_id}".encode())]],
         )
 
     @bot.on(events.CallbackQuery(pattern=rb"admin_user_orders_\d+_\d+"))
@@ -1673,7 +1616,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             return
         match = re.fullmatch(r"admin_user_orders_(\d+)_(\d+)", event.data.decode())
         target_user_id, page = int(match.group(1)), int(match.group(2))
-        language = _language(event.sender_id)
         result = payment_system.list_admin_orders(
             "all", query=str(target_user_id), page=page, page_size=20
         )
@@ -1687,19 +1629,18 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             callback = f"admin_order_detail_{item['order_id']}".encode()
             if len(callback) <= 64:
                 buttons.append([Button.inline(
-                    f"{_order_status_text(item, language)} · {item['order_id']}"[:58], callback
+                    f"{_order_status_text(item)} · {item['order_id']}"[:58], callback
                 )])
         nav = pagination_buttons(
-            f"admin_user_orders_{target_user_id}", result["page"], result["max_page"], language
+            f"admin_user_orders_{target_user_id}", result["page"], result["max_page"]
         )
         if nav:
             buttons.append(nav)
-        buttons.append([back_button(f"admin_user_detail_{target_user_id}".encode(), language=language)])
+        buttons.append([back_button(f"admin_user_detail_{target_user_id}".encode())])
         await event.answer()
         await safe_edit(
             event,
-            t(
-                language, "admin.user.orders_text", user_id=target_user_id,
+            t("admin.user.orders_text", user_id=target_user_id,
                 total=result["total"], page=result["page"] + 1,
                 pages=result["max_page"] + 1,
             ),
@@ -1708,7 +1649,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
 
     async def _render_audit_list(event, page=0, answer=True):
         _clear_admin_input_state(event.sender_id)
-        language = _language(event.sender_id)
         filters = dict(get_state(event.sender_id).get("admin_audit_filters") or {})
         filters["exclude_attempt"] = True
         result = AdminAuditLog.query(filters, page=page, page_size=25)
@@ -1716,25 +1656,24 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         for item in result["items"]:
             icon = "✅" if item.get("result") == "success" else "❌"
             buttons.append([Button.inline(
-                f"{icon} {_localized_code(language, 'admin.audit.action', item.get('action'))} · "
+                f"{icon} {_localized_code('admin.audit.action', item.get('action'))} · "
                 f"{item.get('target_id') or '-'}"[:58],
                 f"admin_audit_detail_{item['audit_id']}".encode(),
             )])
-        nav = pagination_buttons("admin_audit", result["page"], result["max_page"], language)
+        nav = pagination_buttons("admin_audit", result["page"], result["max_page"])
         if nav:
             buttons.append(nav)
         buttons.extend([
-            [Button.inline(t(language, "admin.audit.filter"), b"admin_audit_filter"), Button.inline(t(language, "admin.audit.clear"), b"admin_audit_clear")],
-            [Button.inline(t(language, "admin.audit.download"), b"admin_audit_download")],
-            [back_button(b"admin_panel", language=language)],
+            [Button.inline(t("admin.audit.filter"), b"admin_audit_filter"), Button.inline(t("admin.audit.clear"), b"admin_audit_clear")],
+            [Button.inline(t("admin.audit.download"), b"admin_audit_download")],
+            [back_button(b"admin_panel")],
         ])
         if answer:
             await event.answer()
-        filter_text = t(language, "admin.audit.filtered") if len(filters) > 1 else ""
+        filter_text = t("admin.audit.filtered") if len(filters) > 1 else ""
         await safe_edit(
             event,
-            t(
-                language, "admin.audit.title", filter=filter_text, total=result["total"],
+            t("admin.audit.title", filter=filter_text, total=result["total"],
                 page=result["page"] + 1, pages=result["max_page"] + 1,
             ),
             buttons=buttons,
@@ -1744,7 +1683,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     async def admin_audit(event):
         if not await require_admin(event, alert=True):
             return
-        language = _language(event.sender_id)
         page = int(event.data.decode().rsplit("_", 1)[1])
         await _render_audit_list(event, page)
 
@@ -1752,13 +1690,12 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     async def admin_audit_filter(event):
         if not await require_admin(event, alert=True):
             return
-        language = _language(event.sender_id)
         set_state(event.sender_id, admin_audit_filter=True)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.audit.filter_prompt"),
-            buttons=[[back_button(b"admin_audit_0", language=language)]],
+            t("admin.audit.filter_prompt"),
+            buttons=[[back_button(b"admin_audit_0")]],
         )
 
     @bot.on(events.CallbackQuery(pattern=b"admin_audit_clear"))
@@ -1773,45 +1710,42 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         audit_id = event.data.decode().removeprefix("admin_audit_detail_")
-        language = _language(event.sender_id)
         entries = AdminAuditLog.get_by_audit_id(audit_id)
         if not entries:
-            await event.answer(t(language, "admin.audit.not_found"), alert=True)
+            await event.answer(t("admin.audit.not_found"), alert=True)
             return
-        text = _format_audit_entries(entries, language)
+        text = _format_audit_entries(entries)
         await event.answer()
         await safe_edit(
             event, text[:3900],
-            buttons=[[back_button(b"admin_audit_0", language=language)]],
+            buttons=[[back_button(b"admin_audit_0")]],
         )
 
     @bot.on(events.CallbackQuery(pattern=b"admin_audit_download"))
     async def admin_audit_download(event):
         if not await require_admin(event, alert=True):
             return
-        language = _language(event.sender_id)
         audit_id = AdminAuditLog.record_attempt(event.sender_id, "audit.download", "audit")
         AdminAuditLog.prune()
         path = audit_file_path()
         if not os.path.exists(path):
             _audit_result(audit_id, event.sender_id, "audit.download", "failed", "audit", error="not_found")
-            await event.answer(t(language, "admin.audit.no_logs"), alert=True)
+            await event.answer(t("admin.audit.no_logs"), alert=True)
             return
-        await event.answer(t(language, "admin.audit.sending"))
+        await event.answer(t("admin.audit.sending"))
         try:
             await bot.send_file(
-                event.sender_id, path, caption=t(language, "admin.audit.caption")
+                event.sender_id, path, caption=t("admin.audit.caption")
             )
             audited = _audit_result(audit_id, event.sender_id, "audit.download", "success", "audit")
             if not audited:
-                await event.respond(t(language, "admin.audit.sent_warning"))
+                await event.respond(t("admin.audit.sent_warning"))
         except Exception as error:
             _audit_result(audit_id, event.sender_id, "audit.download", "failed", "audit", error=str(error))
-            await event.respond(t(language, "admin.audit.send_failed"))
+            await event.respond(t("admin.audit.send_failed"))
 
     async def _render_subscription_config(event, *, answer=True, notice=None):
         _clear_admin_input_state(event.sender_id)
-        language = _language(event.sender_id)
         catalog = DataManager.get_subscription_catalog()
         periods = DataManager.get_subscription_periods()
         go, plus, pro = catalog['go'], catalog['plus'], catalog['pro']
@@ -1819,8 +1753,7 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             await event.answer()
         await safe_edit(
             event,
-            t(
-                language, "admin.config.text",
+            t("admin.config.text",
                 notice=f"{notice}\n\n" if notice else "",
                 go_price=go["price"], go_quota=go["quota"],
                 plus_price=plus["price"], plus_quota=plus["quota"],
@@ -1832,14 +1765,14 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             ),
             buttons=[
                 [
-                    Button.inline(t(language, "admin.config.edit_go"), b"admin_subscription_config_edit_go"),
-                    Button.inline(t(language, "admin.config.edit_plus"), b"admin_subscription_config_edit_plus"),
+                    Button.inline(t("admin.config.edit_go"), b"admin_subscription_config_edit_go"),
+                    Button.inline(t("admin.config.edit_plus"), b"admin_subscription_config_edit_plus"),
                 ],
                 [
-                    Button.inline(t(language, "admin.config.edit_pro"), b"admin_subscription_config_edit_pro"),
-                    Button.inline(t(language, "admin.config.edit_discounts"), b"admin_subscription_config_edit_discounts"),
+                    Button.inline(t("admin.config.edit_pro"), b"admin_subscription_config_edit_pro"),
+                    Button.inline(t("admin.config.edit_discounts"), b"admin_subscription_config_edit_discounts"),
                 ],
-                [back_button(b"admin_panel", language=language)],
+                [back_button(b"admin_panel")],
             ],
         )
 
@@ -1855,7 +1788,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     async def admin_subscription_config_edit(event):
         if not await require_admin(event, alert=True):
             return
-        language = _language(event.sender_id)
         target = event.data.decode().removeprefix("admin_subscription_config_edit_")
         _clear_admin_input_state(event.sender_id)
         before = (
@@ -1875,8 +1807,8 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         await event.answer()
         await safe_edit(
             event,
-            _config_flow_prompt(flow, language=language),
-            buttons=[[back_button(b"admin_subscription_config", language=language)]],
+            _config_flow_prompt(flow),
+            buttons=[[back_button(b"admin_subscription_config")]],
             parse_mode="md",
         )
 
@@ -1884,16 +1816,15 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     async def admin_subscription_config_confirm(event):
         if not await require_admin(event, alert=True):
             return
-        language = _language(event.sender_id)
         flow = get_state(event.sender_id).get("admin_subscription_config_flow")
         if not flow or flow.get("stage") != "preview":
-            await event.answer(t(language, "admin.config.invalid"), alert=True)
+            await event.answer(t("admin.config.invalid"), alert=True)
             await _render_subscription_config(event, answer=False)
             return
         if time.time() - float(flow.get("started_at", 0)) > _ADMIN_ACTION_TTL_SECONDS:
-            await event.answer(t(language, "admin.config.expired"), alert=True)
+            await event.answer(t("admin.config.expired"), alert=True)
             await _render_subscription_config(
-                event, answer=False, notice=t(language, "admin.config.expired_notice")
+                event, answer=False, notice=t("admin.config.expired_notice")
             )
             return
         is_discounts = flow["target"] == "discounts"
@@ -1903,9 +1834,9 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             else DataManager.get_subscription_catalog()
         )
         if current != flow["before"]:
-            await event.answer(t(language, "admin.config.changed"), alert=True)
+            await event.answer(t("admin.config.changed"), alert=True)
             await _render_subscription_config(
-                event, answer=False, notice=t(language, "admin.config.changed_notice")
+                event, answer=False, notice=t("admin.config.changed_notice")
             )
             return
         candidate = _config_flow_candidate(flow)
@@ -1927,9 +1858,9 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 audit_id, event.sender_id, action, "failed", target_type,
                 before=current, error="save_failed",
             )
-            await event.answer(t(language, "admin.config.save_failed"), alert=True)
+            await event.answer(t("admin.config.save_failed"), alert=True)
             await _render_subscription_config(
-                event, answer=False, notice=t(language, "admin.config.save_failed_notice")
+                event, answer=False, notice=t("admin.config.save_failed_notice")
             )
             return
         after = (
@@ -1941,10 +1872,10 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             audit_id, event.sender_id, action, "success", target_type,
             before=current, after=after,
         )
-        await event.answer(t(language, "admin.config.saved"))
-        notice = t(language, "admin.config.saved_notice")
+        await event.answer(t("admin.config.saved"))
+        notice = t("admin.config.saved_notice")
         if not audited:
-            notice += t(language, "admin.config.audit_warning")
+            notice += t("admin.config.audit_warning")
         await _render_subscription_config(event, answer=False, notice=notice)
 
     @bot.on(events.CallbackQuery(pattern=b"admin_panel"))
@@ -1955,43 +1886,40 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     async def admin_reminder_settings(event):
         """Reminder settings hub."""
         user_id = event.sender_id
-        language = _language(user_id)
         if not await require_admin(event, alert=True):
             return
         _clear_admin_input_state(user_id)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.reminder.hub"),
+            t("admin.reminder.hub"),
             buttons=[
                 [Button.inline(
-                    t(language, "admin.reminder.expiry_button"),
+                    t("admin.reminder.expiry_button"),
                     b"admin_expiry_reminder_settings",
                 )],
                 [Button.inline(
-                    t(language, "admin.reminder.login_unlock_button"),
+                    t("admin.reminder.login_unlock_button"),
                     b"admin_login_unlock_reminder_settings",
                 )],
-                [back_button(b"admin_panel", language=language)],
+                [back_button(b"admin_panel")],
             ],
         )
 
     @bot.on(events.CallbackQuery(pattern=b"admin_expiry_reminder_settings"))
     async def admin_expiry_reminder_settings(event):
         user_id = event.sender_id
-        language = _language(user_id)
         if not await require_admin(event, alert=True):
             return
         _clear_admin_input_state(user_id)
         current_days = DataManager.get_expiry_reminder_days()
         expiring_users = DataManager.get_expiring_subscription_users(current_days)
-        message = t(
-            language, "admin.reminder.text", days=current_days, count=len(expiring_users)
+        message = t("admin.reminder.text", days=current_days, count=len(expiring_users)
         )
         buttons = [
-            [Button.inline(t(language, "admin.reminder.option", days=1), b"set_reminder_1"), Button.inline(t(language, "admin.reminder.option", days=3), b"set_reminder_3")],
-            [Button.inline(t(language, "admin.reminder.option", days=7), b"set_reminder_7"), Button.inline(t(language, "admin.reminder.option", days=15), b"set_reminder_15")],
-            [back_button(b"admin_reminder_settings", language=language)]
+            [Button.inline(t("admin.reminder.option", days=1), b"set_reminder_1"), Button.inline(t("admin.reminder.option", days=3), b"set_reminder_3")],
+            [Button.inline(t("admin.reminder.option", days=7), b"set_reminder_7"), Button.inline(t("admin.reminder.option", days=15), b"set_reminder_15")],
+            [back_button(b"admin_reminder_settings")]
         ]
         await event.answer()
         await safe_edit(event, message, buttons=buttons)
@@ -1999,13 +1927,12 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     @bot.on(events.CallbackQuery(pattern=b"admin_login_unlock_reminder_settings"))
     async def admin_login_unlock_reminder_settings(event):
         user_id = event.sender_id
-        language = _language(user_id)
         if not await require_admin(event, alert=True):
             return
         _clear_admin_input_state(user_id)
         schedule = DataManager.get_login_unlock_reminder_schedule()
         schedule_text = " / ".join(
-            format_offset(value, language) for value in schedule["offsets_seconds"]
+            format_offset(value) for value in schedule["offsets_seconds"]
         )
         buttons = [
             [
@@ -2016,14 +1943,12 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 Button.inline(str(value), f"admin_login_unlock_count_{value}".encode())
                 for value in range(4, 6)
             ],
-            [back_button(b"admin_reminder_settings", language=language)],
+            [back_button(b"admin_reminder_settings")],
         ]
         await event.answer()
         await safe_edit(
             event,
-            t(
-                language,
-                "admin.login_unlock.text",
+            t("admin.login_unlock.text",
                 count=schedule["count"],
                 schedule=schedule_text,
             ),
@@ -2035,13 +1960,12 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not await require_admin(event, alert=True):
             return
         count = int(event.data.decode().rsplit("_", 1)[1])
-        language = _language(event.sender_id)
         set_state(event.sender_id, admin_login_unlock_reminder_count=count)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.login_unlock.prompt", count=count),
-            buttons=[[back_button(b"admin_login_unlock_reminder_settings", language=language)]],
+            t("admin.login_unlock.prompt", count=count),
+            buttons=[[back_button(b"admin_login_unlock_reminder_settings")]],
             parse_mode="md",
         )
 
@@ -2049,7 +1973,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
     async def set_reminder_days(event):
         """设置提醒天数"""
         user_id = event.sender_id
-        language = _language(user_id)
         
         if not await require_admin(event, alert=True):
             return
@@ -2063,16 +1986,16 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 "system_setting", "expiry_reminder_days",
                 before={"days": before}, after={"days": days},
             )
-            await event.answer(t(language, "admin.reminder.saved", days=days))
+            await event.answer(t("admin.reminder.saved", days=days))
             await admin_expiry_reminder_settings(event)
             if not audited:
-                await event.respond(t(language, "admin.common.audit_warning"))
+                await event.respond(t("admin.common.audit_warning"))
         else:
             _audit_result(
                 audit_id, user_id, "config.expiry_reminder_set", "failed",
                 "system_setting", "expiry_reminder_days", before={"days": before}, error="save_failed",
             )
-            await event.answer(t(language, "admin.reminder.failed"), alert=True)
+            await event.answer(t("admin.reminder.failed"), alert=True)
 
     @bot.on(events.CallbackQuery(pattern=b"admin_subscription_grant_help"))
     async def admin_subscription_grant_help(event):
@@ -2080,56 +2003,53 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             return
 
         _clear_admin_input_state(event.sender_id)
-        language = _language(event.sender_id)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.subscription.help_grant"),
-            buttons=[[back_button(b"admin_panel", language=language)]], parse_mode='md',
+            t("admin.subscription.help_grant"),
+            buttons=[[back_button(b"admin_panel")]], parse_mode='md',
         )
 
     @bot.on(events.NewMessage(pattern=r'^/sub(?:@\w+)?(?:\s+.*)?$'))
     async def sub_command(event):
         if not await require_admin(event):
             return
-        language = _language(event.sender_id)
         args = (event.text or '').split()[1:]
         target_hint = args[0] if args else None
         audit_id = AdminAuditLog.record_attempt(event.sender_id, "subscription.grant", "user", target_hint)
         if len(args) < 3:
             _audit_result(audit_id, event.sender_id, "subscription.grant", "failed", "user", target_hint, error="invalid_argument_count")
-            await event.respond(t(language, "admin.subscription.sub_format"))
+            await event.respond(t("admin.subscription.sub_format"))
             return
         try:
             target_user_id = int(args[0])
             if target_user_id <= 0:
-                raise ValueError(t(language, "admin.subscription.error.user_id_positive"))
+                raise ValueError(t("admin.subscription.error.user_id_positive"))
             if DataManager.is_admin(target_user_id):
-                raise ValueError(t(language, "admin.subscription.error.admin_unlimited"))
+                raise ValueError(t("admin.subscription.error.admin_unlimited"))
             plan_id = args[1].lower()
             if plan_id not in {'go', 'plus', 'pro'}:
-                raise ValueError(t(language, "admin.subscription.error.plan"))
+                raise ValueError(t("admin.subscription.error.plan"))
             days = int(args[2])
             if days <= 0:
-                raise ValueError(t(language, "admin.subscription.error.days_positive"))
+                raise ValueError(t("admin.subscription.error.days_positive"))
             try:
                 datetime.now() + timedelta(days=days)
             except (OverflowError, ValueError):
-                raise ValueError(t(language, "admin.subscription.error.days_range"))
+                raise ValueError(t("admin.subscription.error.days_range"))
             quota = None
             if plan_id == 'plus':
                 if len(args) > 4:
-                    raise ValueError(t(language, "admin.subscription.error.plus_args"))
+                    raise ValueError(t("admin.subscription.error.plus_args"))
                 quota = int(args[3]) if len(args) == 4 else None
             elif len(args) != 3:
-                raise ValueError(t(
-                    language, "admin.subscription.error.quota_not_allowed",
+                raise ValueError(t("admin.subscription.error.quota_not_allowed",
                     plan=plan_id.upper(),
                 ))
             quote = DataManager.quote_subscription(plan_id, quota)
         except (TypeError, ValueError) as error:
             _audit_result(audit_id, event.sender_id, "subscription.grant", "failed", "user", target_hint, error=str(error))
-            await event.respond(t(language, "admin.subscription.invalid_params", error=error))
+            await event.respond(t("admin.subscription.invalid_params", error=error))
             return
         before = DataManager.get_subscription(target_user_id, include_inactive=True)
         pending = _queue_admin_action(
@@ -2139,38 +2059,37 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         )
         set_state(event.sender_id, admin_user_back="admin_panel")
         await event.respond(
-            _grant_confirmation_text(target_user_id, quote, days, before, language),
-            buttons=_confirmation_buttons(pending, language),
+            _grant_confirmation_text(target_user_id, quote, days, before),
+            buttons=_confirmation_buttons(pending),
         )
 
     @bot.on(events.NewMessage(pattern=r'^/delsub(?:@\w+)?(?:\s+.*)?$'))
     async def delsub_command(event):
         if not await require_admin(event):
             return
-        language = _language(event.sender_id)
         args = (event.text or '').split()[1:]
         target_hint = args[0] if args else None
         audit_id = AdminAuditLog.record_attempt(event.sender_id, "subscription.delete", "user", target_hint)
         if len(args) != 1:
             _audit_result(audit_id, event.sender_id, "subscription.delete", "failed", "user", target_hint, error="invalid_argument_count")
-            await event.respond(t(language, "admin.subscription.delsub_format"))
+            await event.respond(t("admin.subscription.delsub_format"))
             return
         try:
             target_user_id = int(args[0])
             if target_user_id <= 0:
-                raise ValueError(t(language, "admin.subscription.error.user_id_positive"))
+                raise ValueError(t("admin.subscription.error.user_id_positive"))
             if DataManager.is_admin(target_user_id):
-                raise ValueError(t(language, "admin.subscription.error.delete_admin"))
+                raise ValueError(t("admin.subscription.error.delete_admin"))
         except ValueError as error:
             _audit_result(audit_id, event.sender_id, "subscription.delete", "failed", "user", target_hint, error=str(error))
-            await event.respond(t(language, "admin.subscription.invalid_params", error=error))
+            await event.respond(t("admin.subscription.invalid_params", error=error))
             return
 
         before = DataManager.get_subscription(target_user_id, include_inactive=True)
         if not before:
             _audit_result(audit_id, event.sender_id, "subscription.delete", "failed", "user", target_user_id, error="no_subscription")
             await event.respond(
-                t(language, "admin.subscription.nothing_to_delete", user_id=target_user_id),
+                t("admin.subscription.nothing_to_delete", user_id=target_user_id),
                 parse_mode='md'
             )
             return
@@ -2181,19 +2100,17 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         )
         set_state(event.sender_id, admin_user_back="admin_panel")
         await event.respond(
-            t(
-                language, "admin.subscription.delete_command_confirm",
+            t("admin.subscription.delete_command_confirm",
                 user_id=target_user_id,
                 plan=str(before.get("plan_id") or "-").upper(),
                 expires_at=str(before.get("expires_at") or "-")[:19],
             ),
-            buttons=_confirmation_buttons(pending, language),
+            buttons=_confirmation_buttons(pending),
         )
 
     @bot.on(events.CallbackQuery(pattern=rb"admin_list_vip(?:_\d+)?"))
     async def admin_list_vip(event):
         user_id = event.sender_id
-        language = _language(user_id)
         data = event.data.decode(errors="ignore")
         page = int(data.rsplit("_", 1)[1]) if data.startswith("admin_list_vip_") else 0
         
@@ -2206,8 +2123,8 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         if not vip_users:
             await event.answer()
             await edit_or_respond(
-                event, t(language, "admin.subscription.list_empty"),
-                buttons=[[back_button(b"admin_panel", language=language)]],
+                event, t("admin.subscription.list_empty"),
+                buttons=[[back_button(b"admin_panel")]],
             )
             return
 
@@ -2222,7 +2139,7 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 label_parts.append(name)
             label_parts.extend([
                 f"ID:{vip_user_id}",
-                t(language, "admin.subscription.hosted_label", count=hosting_count),
+                t("admin.subscription.hosted_label", count=hosting_count),
             ])
             buttons.append([
                 Button.inline(
@@ -2231,11 +2148,11 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
                 )
             ])
 
-        nav = pagination_buttons("admin_list_vip", page, max_page, language)
+        nav = pagination_buttons("admin_list_vip", page, max_page)
         if nav:
             buttons.append(nav)
-        buttons.append([back_button(b"admin_panel", language=language)])
-        response = t(language, "admin.subscription.list_text", count=len(vip_users))
+        buttons.append([back_button(b"admin_panel")])
+        response = t("admin.subscription.list_text", count=len(vip_users))
 
         await event.answer()
         await edit_or_respond(event, response, buttons=buttons)
@@ -2254,12 +2171,11 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             return
 
         _clear_admin_input_state(event.sender_id)
-        language = _language(event.sender_id)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "admin.subscription.help_delete"),
-            buttons=[[back_button(b"admin_panel", language=language)]],
+            t("admin.subscription.help_delete"),
+            buttons=[[back_button(b"admin_panel")]],
             parse_mode='md',
         )
 

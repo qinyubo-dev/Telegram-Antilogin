@@ -46,7 +46,7 @@ def test_buy_vip_renders_catalog_and_falls_back_to_response(handler_bot, event_f
     bot, _ = register(handler_bot)
     set_state(1001, stale=True)
     event = event_factory(data=b"buy_vip")
-    with patch("handlers.vip_handlers.DataManager.get_user_language", return_value="zh"), patch(
+    with patch(
         "handlers.vip_handlers.DataManager.get_subscription", return_value={"active": True}
     ), patch("handlers.vip_handlers._catalog_text", return_value="catalog"), patch(
         "handlers.vip_handlers._current_subscription_text", return_value="current"
@@ -180,10 +180,10 @@ def test_billing_text_variants():
         "list_price": "12",
         "amount": "10.8",
     }
-    assert "实际节省 10%" in vip_handlers._order_billing_text(standard, "zh")
-    assert "10.8" in vip_handlers._order_billing_text(standard, "en")
+    assert "实际节省 10%" in vip_handlers._order_billing_text(standard)
+    assert "10.8" in vip_handlers._order_billing_text(standard)
     standard["period_days"] = 30
-    assert "标准原价" not in vip_handlers._order_billing_text(standard, "zh")
+    assert "标准原价" not in vip_handlers._order_billing_text(standard)
 
 
 def test_payment_check_wrong_owner_and_manual_confirm(handler_bot, event_factory):

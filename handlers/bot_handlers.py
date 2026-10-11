@@ -42,103 +42,92 @@ SUPPORT_USERNAME = "QinSupport"
 SUPPORT_CUSTOM_EMOJI_ID = 5891243564309942507
 
 
-def _language(user_id: int) -> str:
-    return DataManager.get_user_language(user_id)
-
-
-def hosting_quota_status_text(user_id: int, language: str = None) -> str:
-    language = language or _language(user_id)
+def hosting_quota_status_text(user_id: int) -> str:
     status = AccountManager.get_quota_status(user_id)
     quota = status['quota']
-    total_text = t(language, "main.quota_unlimited") if quota is None else t(
-        language, "main.quota_count", count=quota
+    total_text = t("main.quota_unlimited") if quota is None else t("main.quota_count", count=quota
     )
     return f"{status['used']} / {total_text}"
 
 
 def main_menu_text(
     name: str, user_id: int, quota_status_text: str, online_accounts: int,
-    language: str = "zh",
 ) -> str:
-    return t(
-        language, "main.text", name=name, user_id=user_id,
+    return t("main.text", name=name, user_id=user_id,
         quota=quota_status_text, online=online_accounts,
     )
 
 
-def support_profile_markup(input_user, include_back: bool = True, language: str = "zh"):
+def support_profile_markup(input_user, include_back: bool = True):
     profile_button = types.InputKeyboardButtonUserProfile(
-        text=t(language, "support.contact"),
+        text=t("support.contact"),
         user_id=input_user,
         style=types.KeyboardButtonStyle(icon=SUPPORT_CUSTOM_EMOJI_ID),
     )
     rows = [types.KeyboardButtonRow(buttons=[profile_button])]
     if include_back:
-        rows.append(types.KeyboardButtonRow(buttons=[back_button(b"back_to_main", language=language)]))
+        rows.append(types.KeyboardButtonRow(buttons=[back_button(b"back_to_main")]))
     return types.ReplyInlineMarkup(
         rows=rows
     )
 
 
 def main_menu_buttons(user_id: int):
-    language = _language(user_id)
     buttons = [
-        [Button.inline(t(language, "main.add_account"), b"add_account", icon=5775937998948404844),
-         Button.inline(t(language, "main.account_list"), b"list_accounts", icon=5960551395730919906)],
-        [Button.inline(t(language, "main.hosting_tools"), b"hosting_menu", icon=6008118472066732010),
-         Button.inline(t(language, "main.antilogin"), b"antilogin_settings", icon=5877260593903177342)],
-        [Button.inline(t(language, "main.transfer_account"), b"account_transfer_accounts", icon=TRANSFER_CUSTOM_EMOJI_ID),
-         Button.inline(t(language, "main.vip_center"), b"vip_center", icon=6028530359975548369)],
+        [Button.inline(t("main.add_account"), b"add_account", icon=5775937998948404844),
+         Button.inline(t("main.account_list"), b"list_accounts", icon=5960551395730919906)],
+        [Button.inline(t("main.hosting_tools"), b"hosting_menu", icon=6008118472066732010),
+         Button.inline(t("main.antilogin"), b"antilogin_settings", icon=5877260593903177342)],
+        [Button.inline(t("main.transfer_account"), b"account_transfer_accounts", icon=TRANSFER_CUSTOM_EMOJI_ID),
+         Button.inline(t("main.vip_center"), b"vip_center", icon=6028530359975548369)],
         [Button.inline(
-            t(language, "main.login_unlock"), b"login_unlock_menu",
+            t("main.login_unlock"), b"login_unlock_menu",
             icon=LOGIN_UNLOCK_CUSTOM_EMOJI_ID,
         ),
          Button.inline(
-             t(language, "main.more"), b"more_menu", icon=5884123981706956210
+             t("main.more"), b"more_menu", icon=5884123981706956210
          )],
     ]
     if DataManager.is_admin(user_id):
         buttons.append([Button.inline(
-            t(language, "main.admin"), b"admin_panel", icon=5807868868886009920
+            t("main.admin"), b"admin_panel", icon=5807868868886009920
         )])
     return buttons
 
 
 def more_menu_buttons(user_id: int):
-    language = _language(user_id)
     return [
         [
             Button.inline(
-                t(language, "main.reload"), b"reload_user_accounts",
+                t("main.reload"), b"reload_user_accounts",
                 icon=5877410604225924969,
             ),
             Button.inline(
-                t(language, "main.support"), b"customer_support",
+                t("main.support"), b"customer_support",
                 icon=SUPPORT_CUSTOM_EMOJI_ID,
             ),
         ],
         [
             Button.inline(
-                t(language, "main.help"), b"show_help",
+                t("main.help"), b"show_help",
                 icon=5873121512445187130,
             ),
         ],
-        [back_button(b"back_to_main", language=language)],
+        [back_button(b"back_to_main")],
     ]
 
 
 async def render_home(bot, event, *, edit: bool):
     user_id = event.sender_id
-    language = _language(user_id)
     if not AccountManager.check_access(user_id):
         kwargs = {
             "buttons": [
-                [Button.inline(t(language, "access.buy"), b"buy_vip", icon=5956148757899776734)],
-                [Button.inline(t(language, "main.support"), b"customer_support", icon=SUPPORT_CUSTOM_EMOJI_ID)],
+                [Button.inline(t("access.buy"), b"buy_vip", icon=5956148757899776734)],
+                [Button.inline(t("main.support"), b"customer_support", icon=SUPPORT_CUSTOM_EMOJI_ID)],
             ],
             "parse_mode": "md",
         }
-        text = t(language, "access.text", user_id=user_id)
+        text = t("access.text", user_id=user_id)
         return (
             await safe_edit(event, text, ignore_invalid=True, **kwargs)
             if edit
@@ -148,10 +137,10 @@ async def render_home(bot, event, *, edit: bool):
     accounts = AccountManager.get_user_accounts(user_id) or {}
     online_accounts = sum(1 for account in accounts.values() if account.get("anti_login"))
     user = await event.get_sender()
-    name = user.first_name or t(language, "common.user")
+    name = user.first_name or t("common.user")
     text = main_menu_text(
-        name, user_id, hosting_quota_status_text(user_id, language),
-        online_accounts, language,
+        name, user_id, hosting_quota_status_text(user_id),
+        online_accounts,
     )
     kwargs = {"buttons": main_menu_buttons(user_id), "parse_mode": "md"}
     return (
@@ -220,12 +209,11 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
 
         AccountManager.cleanup_stale_pending_sessions()
         cleanup_result = await cancel_all_user_flows(user_id, reason="start")
-        language = _language(user_id)
         if not cleanup_result.ok:
             message = (
-                t(language, "start.qr_cleanup_failed")
+                t("start.qr_cleanup_failed")
                 if cleanup_result.reason == "qr_message_delete_failed"
-                else t(language, "start.session_releasing")
+                else t("start.session_releasing")
             )
             await event.respond(message)
             return
@@ -241,65 +229,60 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
 
     @bot.on(events.NewMessage(pattern=r'^/support(?:@\w+)?$'))
     async def support_command(event):
-        language = _language(event.sender_id)
         try:
             support_user = await resolve_support_user(bot)
             buttons = support_profile_markup(
-                support_user, include_back=False, language=language
+                support_user, include_back=False
             )
         except Exception:
             logger.exception("无法解析客服用户实体")
-            await event.respond(t(language, "support.unavailable"))
+            await event.respond(t("support.unavailable"))
             return
-        await event.respond(t(language, "support.pointer"), buttons=buttons)
+        await event.respond(t("support.pointer"), buttons=buttons)
 
     @bot.on(events.CallbackQuery(pattern=b"show_help"))
     async def show_help(event):
-        language = _language(event.sender_id)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "help.text"),
-            buttons=[[back_button(b"back_to_main", language=language)]]
+            t("help.text"),
+            buttons=[[back_button(b"back_to_main")]]
         )
 
     @bot.on(events.NewMessage(pattern=r'^/help(?:@\w+)?$'))
     async def help_command(event):
-        language = _language(event.sender_id)
-        await event.respond(t(language, "help.text"))
+        await event.respond(t("help.text"))
 
     @bot.on(events.CallbackQuery(pattern=b"more_menu"))
     async def more_menu(event):
         user_id = event.sender_id
-        language = _language(user_id)
         if not AccountManager.check_access(user_id):
-            await event.answer(t(language, "common.no_access"), alert=True)
+            await event.answer(t("common.no_access"), alert=True)
             return
         await event.answer()
         await safe_edit(
             event,
-            t(language, "main.more_text"),
+            t("main.more_text"),
             buttons=more_menu_buttons(user_id),
         )
 
     @bot.on(events.CallbackQuery(pattern=b"customer_support"))
     async def customer_support(event):
-        language = _language(event.sender_id)
         await safe_answer_callback(event)
         try:
             support_user = await resolve_support_user(bot)
-            buttons = support_profile_markup(support_user, language=language)
+            buttons = support_profile_markup(support_user)
         except Exception:
             logger.exception("无法解析客服用户实体")
             await safe_edit(
                 event,
-                t(language, "support.unavailable"),
-                buttons=[[back_button(b"back_to_main", language=language)]],
+                t("support.unavailable"),
+                buttons=[[back_button(b"back_to_main")]],
             )
             return
         await safe_edit(
             event,
-            t(language, "support.pointer"),
+            t("support.pointer"),
             buttons=buttons,
         )
 
@@ -319,11 +302,10 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
             preserve_message=None if is_qr_flow else current_message,
         )
         if not cleanup_result.ok:
-            language = _language(user_id)
             message = (
-                t(language, "back.cleanup_failed")
+                t("back.cleanup_failed")
                 if cleanup_result.reason == "qr_message_delete_failed"
-                else t(language, "start.session_releasing")
+                else t("start.session_releasing")
             )
             await event.answer(message, alert=True)
             return
@@ -334,42 +316,40 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
     @bot.on(events.CallbackQuery(pattern=b"list_accounts"))
     async def list_accounts_callback(event):
         user_id = event.sender_id
-        language = _language(user_id)
         
         if not AccountManager.check_access(user_id):
-            await event.answer(t(language, "common.no_access"), alert=True)
+            await event.answer(t("common.no_access"), alert=True)
             return
             
         accounts = AccountManager.get_user_accounts(user_id)
         
         if not accounts:
             await event.answer()
-            await safe_edit(event, t(language, "accounts.empty"), buttons=[[back_button(b"back_to_main", language=language)]])
+            await safe_edit(event, t("accounts.empty"), buttons=[[back_button(b"back_to_main")]])
             return
         
-        response = t(language, "accounts.title")
+        response = t("accounts.title")
         for phone, acc in accounts.items():
             display_phone = acc.get('display_phone', phone)
             protection_icon = AccountManager.get_antilogin_status_icon(acc)
             reload_time = datetime.fromtimestamp(acc.get('last_reload', 0)).strftime('%Y-%m-%d %H:%M')
             response += (
                 f"{protection_icon} {display_phone}\n"
-                + t(language, "accounts.last_reload", time=reload_time)
+                + t("accounts.last_reload", time=reload_time)
             )
         
         await event.answer()
-        await safe_edit(event, response, buttons=[[back_button(b"back_to_main", language=language)]])
+        await safe_edit(event, response, buttons=[[back_button(b"back_to_main")]])
 
     @bot.on(events.CallbackQuery(pattern=b"vip_center"))
     async def vip_center(event):
         user_id = event.sender_id
-        language = _language(user_id)
 
         # 状态信息
         if DataManager.is_admin(user_id):
-            status_text = t(language, "vip.admin_status")
-            benefit_heading = t(language, "vip.benefits_current")
-            closing_text = t(language, "vip.thanks")
+            status_text = t("vip.admin_status")
+            benefit_heading = t("vip.benefits_current")
+            closing_text = t("vip.thanks")
         elif DataManager.has_active_subscription(user_id):
             subscription = DataManager.get_subscription(user_id) or {}
             plan_id = str(subscription.get('plan_id', '')).lower()
@@ -381,20 +361,20 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
                 'pro': '𝐏𝐑𝐎',
             }
             premium_plan_name = premium_plan_names.get(plan_id, plan_name)
-            status_text = t(language, "vip.active_status", badge=plan_badge,
+            status_text = t("vip.active_status", badge=plan_badge,
                             plan=premium_plan_name, date=subscription.get('expires_at', '')[:10])
-            benefit_heading = t(language, "vip.benefits_current")
-            closing_text = t(language, "vip.thanks")
+            benefit_heading = t("vip.benefits_current")
+            closing_text = t("vip.thanks")
         else:
-            status_text = t(language, "vip.inactive_status")
-            benefit_heading = t(language, "vip.benefits_available")
-            closing_text = t(language, "vip.invite")
+            status_text = t("vip.inactive_status")
+            benefit_heading = t("vip.benefits_available")
+            closing_text = t("vip.invite")
 
-        feature_text = t(language, "vip.features")
+        feature_text = t("vip.features")
 
         buttons = [
-            [Button.inline(t(language, "vip.upgrade"), b"buy_vip")],
-            [back_button(b"back_to_main", language=language)]
+            [Button.inline(t("vip.upgrade"), b"buy_vip")],
+            [back_button(b"back_to_main")]
         ]
         subscription = DataManager.get_subscription(user_id)
         if (
@@ -402,21 +382,20 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
             and subscription.get('quota') is not None
             and len(AccountManager.hosted_account_phones(user_id)) > int(subscription['quota'])
         ):
-            buttons.insert(1, [Button.inline(t(language, "vip.select_accounts"), b"subscription_accounts")])
+            buttons.insert(1, [Button.inline(t("vip.select_accounts"), b"subscription_accounts")])
 
         await event.answer()
         await safe_edit(event,
-            t(language, "vip.center_text", status=status_text, user_id=user_id,
+            t("vip.center_text", status=status_text, user_id=user_id,
               heading=benefit_heading, features=feature_text, closing=closing_text),
             buttons=buttons
         )
 
     async def render_subscription_accounts(event):
         user_id = event.sender_id
-        language = _language(user_id)
         subscription = DataManager.get_subscription(user_id)
         if not subscription or subscription.get('quota') is None:
-            await event.answer(t(language, "subscription.no_selection"), alert=True)
+            await event.answer(t("subscription.no_selection"), alert=True)
             return
         phones = sorted(AccountManager.hosted_account_phones(user_id))
         selected = set(subscription.get('selected_accounts') or [])
@@ -429,13 +408,13 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
             for digits in phones
         ]
         buttons.extend([
-            [Button.inline(t(language, "subscription.save"), b"subscription_selection_done")],
-            [back_button(b"vip_center", language=language)],
+            [Button.inline(t("subscription.save"), b"subscription_selection_done")],
+            [back_button(b"vip_center")],
         ])
         await event.answer()
         await safe_edit(
             event,
-            t(language, "subscription.selection", selected=len(selected), quota=quota),
+            t("subscription.selection", selected=len(selected), quota=quota),
             buttons=buttons,
         )
 
@@ -446,49 +425,46 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
     @bot.on(events.CallbackQuery(pattern=rb"sub_select_\d+"))
     async def subscription_toggle_account(event):
         user_id = event.sender_id
-        language = _language(user_id)
         digits = event.data.decode().removeprefix('sub_select_')
         subscription = DataManager.get_subscription(user_id)
         if not subscription or subscription.get('quota') is None:
-            await event.answer(t(language, "subscription.changed"), alert=True)
+            await event.answer(t("subscription.changed"), alert=True)
             return
         selected = list(subscription.get('selected_accounts') or [])
         if digits in selected:
             selected.remove(digits)
         else:
             if len(selected) >= int(subscription['quota']):
-                await event.answer(t(language, "subscription.limit"), alert=True)
+                await event.answer(t("subscription.limit"), alert=True)
                 return
             selected.append(digits)
         if not DataManager.set_selected_accounts(user_id, selected, finalize=False):
-            await event.answer(t(language, "subscription.save_failed"), alert=True)
+            await event.answer(t("subscription.save_failed"), alert=True)
             return
         await render_subscription_accounts(event)
 
     @bot.on(events.CallbackQuery(pattern=b"subscription_selection_done"))
     async def subscription_selection_done(event):
         user_id = event.sender_id
-        language = _language(user_id)
         subscription = DataManager.get_subscription(user_id)
         if not subscription or subscription.get('quota') is None:
-            await event.answer(t(language, "subscription.changed"), alert=True)
+            await event.answer(t("subscription.changed"), alert=True)
             return
         selected = list(subscription.get('selected_accounts') or [])
         if not selected and AccountManager.hosted_account_phones(user_id):
-            await event.answer(t(language, "subscription.empty"), alert=True)
+            await event.answer(t("subscription.empty"), alert=True)
             return
         if not DataManager.set_selected_accounts(user_id, selected, finalize=True):
-            await event.answer(t(language, "subscription.save_failed"), alert=True)
+            await event.answer(t("subscription.save_failed"), alert=True)
             return
         await AccountManager.suspend_user_accounts(user_id, keep_selected=True)
         resumed = await AccountManager.resume_selected_accounts(user_id)
-        await event.answer(t(language, "subscription.applied", count=resumed), alert=True)
+        await event.answer(t("subscription.applied", count=resumed), alert=True)
         await vip_center(event)
 
     # 处理消息输入
     @bot.on(events.NewMessage)
     async def handle_messages(event):
-        user_id = event.sender_id
         
         # 忽略命令消息
         if event.text and event.text.startswith('/'):
@@ -501,14 +477,13 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
     async def manual_reload_callback(event):
         """手动重新加载用户名下的账户"""
         user_id = event.sender_id
-        language = _language(user_id)
         
         if not AccountManager.check_access(user_id):
-            await event.answer(t(language, "common.no_access"), alert=True)
+            await event.answer(t("common.no_access"), alert=True)
             return
 
         # 重新加载指定用户账户
-        await event.answer(t(language, "reload.start"))
+        await event.answer(t("reload.start"))
 
         try:
             # 重载当前用户的账户
@@ -522,10 +497,10 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
             dead_count = stats.get("dead_count", failed)
             
             # 显示重新加载结果
-            message = t(language, "reload.done", alive=alive_count,
+            message = t("reload.done", alive=alive_count,
                         frozen=frozen_count, dead=dead_count)
 
-            await safe_edit(event, message, buttons=[[back_button(b"back_to_main", language=language)]])
+            await safe_edit(event, message, buttons=[[back_button(b"back_to_main")]])
         except Exception as e:
-            await safe_edit(event, t(language, "reload.failed", error=str(e)),
-                             buttons=[[back_button(b"back_to_main", language=language)]])
+            await safe_edit(event, t("reload.failed", error=str(e)),
+                             buttons=[[back_button(b"back_to_main")]])

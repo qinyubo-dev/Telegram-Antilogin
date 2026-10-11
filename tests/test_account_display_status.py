@@ -63,33 +63,6 @@ def test_hosting_status_shows_only_hours_until_under_one_hour(monkeypatch):
     ) == "⛔️ 操作受限 · 剩余30分钟"
 
 
-def test_transfer_recipient_preserves_real_creation_time(monkeypatch):
-    now = 2_000_000.0
-    monkeypatch.setattr(account_manager_module, "HOSTING_OPERATION_MIN_AGE_SECONDS", 24 * 60 * 60)
-    source_created_at = now - 2 * 60 * 60
-
-    created_at = account_manager_module.transfer_recipient_created_at(source_created_at)
-
-    assert created_at == source_created_at
-    monkeypatch.setattr(account_manager_module.time, "time", lambda: now)
-    assert AccountManager.get_hosting_status_text(
-        1,
-        "+100",
-        {
-            "runtime_status": "online",
-            "health_status": "alive",
-            "created_at": created_at,
-        },
-    ) == "⛔️ 操作受限 · 剩余22小时"
-
-
-def test_transfer_recipient_missing_creation_time_starts_full_restriction(monkeypatch):
-    now = 2_000_000.0
-    monkeypatch.setattr(account_manager_module.time, "time", lambda: now)
-
-    assert account_manager_module.transfer_recipient_created_at(None) == now
-
-
 def test_transfer_requires_one_hour_after_each_success(monkeypatch, tmp_path):
     user_id = 102
     phone = "+200"

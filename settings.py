@@ -51,8 +51,7 @@ DATA_ROOT = _resolve_root(
     )
 )
 
-# Built-in application defaults. Values explicitly defined in config.py remain
-# supported as deployment overrides, including advanced legacy overrides.
+# Built-in defaults; any value defined in config.py overrides them.
 API_ID = int(_configured("API_ID", 2040))
 API_HASH = str(_configured("API_HASH", "b18441a1ff607e10a989891a5462e627"))
 BOT_TOKEN = str(_configured("BOT_TOKEN", ""))
@@ -60,8 +59,7 @@ MERCHANT_ID = str(_configured("MERCHANT_ID", ""))
 PAYMENT_TOKEN = str(_configured("PAYMENT_TOKEN", ""))
 ADMIN_IDS = [int(user_id) for user_id in _configured("ADMIN_IDS", [])]
 
-# Runtime paths. Explicit legacy config paths remain valid, but relative paths
-# are now anchored to DATA_ROOT instead of the process working directory.
+# Runtime paths; relative paths are anchored to DATA_ROOT.
 SESSIONS_DIR = _runtime_path("SESSIONS_DIR", "sessions")
 DATA_FILE = _runtime_path("DATA_FILE", "user_data.json")
 PAYMENT_ORDERS_FILE = _runtime_path(

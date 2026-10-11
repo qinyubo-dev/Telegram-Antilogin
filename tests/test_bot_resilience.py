@@ -532,10 +532,11 @@ class SyncResilienceTests(unittest.IsolatedAsyncioTestCase):
                 "create_client_from_session",
                 new=AsyncMock(return_value=(object(), phone, True, None)),
             ) as rebuild:
-                self.assertTrue(
-                    await AccountManager._recover_protocol_session_once(
+                self.assertEqual(
+                    await AccountManager._recover_hosted_client_once(
                         42, phone, failed_client, "TypeNotFoundError"
-                    )
+                    ),
+                    "recovered",
                 )
             rebuild.assert_awaited_once()
         finally:

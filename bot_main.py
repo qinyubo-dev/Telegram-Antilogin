@@ -400,14 +400,13 @@ _background_notifications: set = set()
 async def _notify_auto_selection(user_id: int, quota: int, selected: list) -> None:
     """Best-effort notice; failures must never block subscription reconciliation."""
     try:
-        language = DataManager.get_user_language(user_id)
         accounts = "\n".join(
             AccountManager.format_phone_display(f"+{digits}") for digits in selected
         )
         await asyncio.wait_for(bot.send_message(
             user_id,
-            t(language, "subscription.auto_selected", quota=quota, accounts=accounts),
-            buttons=[[Button.inline(t(language, "vip.select_accounts"), b"subscription_accounts")]],
+            t("subscription.auto_selected", quota=quota, accounts=accounts),
+            buttons=[[Button.inline(t("vip.select_accounts"), b"subscription_accounts")]],
         ), timeout=15)
     except asyncio.CancelledError:
         raise
@@ -704,7 +703,7 @@ async def main():
             for admin_id in config.ADMIN_IDS:
                 await bot.send_message(
                     admin_id,
-                    t(DataManager.get_user_language(admin_id), "admin.notification.startup")
+                    t("admin.notification.startup")
                     + f"\n\n{PROJECT_ATTRIBUTION}"
                 )
         except account_runtime.NOTIFY_BOT_FATAL_ERRORS as error:

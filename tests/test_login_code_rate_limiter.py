@@ -221,8 +221,7 @@ def test_phone_login_late_race_restores_retry_flow(handler_bot, event_factory):
     raced_text = render_login_code_rate_limit(
         LoginCodeRateLimitResult(
             allowed=False, reason="interval", retry_after_seconds=15
-        ),
-        "zh",
+        )
     )
 
     async def lose_race(_client, _phone, _user_id):
@@ -282,8 +281,7 @@ def test_manual_probe_late_race_restores_retry_flow(handler_bot, event_factory):
     raced_text = render_login_code_rate_limit(
         LoginCodeRateLimitResult(
             allowed=False, reason="interval", retry_after_seconds=15
-        ),
-        "zh",
+        )
     )
     try:
         with patch(

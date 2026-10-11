@@ -46,7 +46,6 @@ from handlers.handler_utils import (
     safe_edit,
     set_state,
 )
-from storage.data_manager import DataManager
 from localization import localized_result, t
 
 
@@ -67,23 +66,17 @@ LOGIN_UI_MESSAGE_KEYS = (
     "password_prompt_message",
     "qr_status_message",
 )
-def _language(user_id: int) -> str:
-    return DataManager.get_user_language(user_id)
-
-
 def add_account_method_buttons(user_id=None):
-    language = _language(user_id) if user_id is not None else "zh"
     return [
-        [Button.inline(t(language, "account.add.phone"), b"add_account_phone", icon=5877316724830768997)],
-        [Button.inline(t(language, "account.add.qr"), b"add_account_qr", icon=5987917196469213507)],
-        [Button.inline(t(language, "account.add.upload"), b"upload_session", icon=6030822047150512346)],
-        [back_button(b"back_to_main", language=language)],
+        [Button.inline(t("account.add.phone"), b"add_account_phone", icon=5877316724830768997)],
+        [Button.inline(t("account.add.qr"), b"add_account_qr", icon=5987917196469213507)],
+        [Button.inline(t("account.add.upload"), b"upload_session", icon=6030822047150512346)],
+        [back_button(b"back_to_main")],
     ]
 
 
 def back_to_add_methods_buttons(user_id=None):
-    language = _language(user_id) if user_id is not None else "zh"
-    return [[back_button(b"back_to_add_methods", language=language)]]
+    return [[back_button(b"back_to_add_methods")]]
 
 
 def _get_qr_flow_lock(user_id: int) -> asyncio.Lock:
@@ -353,7 +346,6 @@ async def finish_qr_login(
     flow_id = flow_id or get_state(user_id).get("qr_flow_id", "")
     lock = _get_qr_flow_lock(user_id)
     promoted_phone = ""
-    language = _language(user_id)
 
     async def send_terminal_result(text: str, reason: str, **kwargs):
         state = _active_qr_state(user_id, flow_id)
@@ -395,7 +387,7 @@ async def finish_qr_login(
                 phone = getattr(me, "phone", None)
             if not phone:
                 await send_terminal_result(
-                    t(language, "account.qr.no_phone"),
+                    t("account.qr.no_phone"),
                     "qr_no_phone",
                     buttons=back_to_add_methods_buttons(user_id),
                 )
@@ -407,7 +399,7 @@ async def finish_qr_login(
                 return
             if existing.action == "block":
                 await send_terminal_result(
-                    localized_result(language, existing.message),
+                    localized_result(existing.message),
                     "qr_existing_account",
                     buttons=back_to_add_methods_buttons(user_id),
                     parse_mode="md",
@@ -441,7 +433,7 @@ async def finish_qr_login(
 
             success_message = await bot.send_message(
                 user_id,
-                t(language, "account.qr.success",
+                t("account.qr.success",
                   phone=AccountManager.format_phone_display(phone),
                   time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
             )
@@ -493,7 +485,7 @@ async def finish_qr_login(
                 return
             password_prompt_message = await bot.send_message(
                 user_id,
-                t(language, "account.qr.password"),
+                t("account.qr.password"),
             )
             if state.get("qr_cancel_requested"):
                 await _delete_message(password_prompt_message, "cancelled_qr_2fa_prompt")
@@ -504,7 +496,7 @@ async def finish_qr_login(
             if not _active_qr_state(user_id, flow_id):
                 return
             await send_terminal_result(
-                t(language, "account.qr.expired"),
+                t("account.qr.expired"),
                 "qr_timeout",
                 buttons=back_to_add_methods_buttons(user_id),
             )
@@ -521,7 +513,7 @@ async def finish_qr_login(
                 return
             state["qr_commit_started"] = False
             await send_terminal_result(
-                t(language, "account.qr.login_failed", error=str(e)),
+                t("account.qr.login_failed", error=str(e)),
                 "qr_error",
                 buttons=back_to_add_methods_buttons(user_id),
             )
@@ -531,11 +523,10 @@ async def setup_account_handlers(bot: TelegramClient):
     """Register account add/login/session upload handlers."""
 
     async def show_add_account_methods(event):
-        language = _language(event.sender_id)
         await event.answer()
         await safe_edit(
             event,
-            t(language, "account.add.choose"),
+            t("account.add.choose"),
             buttons=add_account_method_buttons(event.sender_id),
         )
 
@@ -549,7 +540,7 @@ async def setup_account_handlers(bot: TelegramClient):
         AccountManager.cleanup_stale_pending_sessions()
         cleanup_result = await cancel_pending_login_flow(user_id, reason="add_account")
         if not cleanup_result.ok:
-            await event.answer(t(_language(user_id), "start.session_releasing"), alert=True)
+            await event.answer(t("start.session_releasing"), alert=True)
             return
 
         await show_add_account_methods(event)
@@ -572,9 +563,9 @@ async def setup_account_handlers(bot: TelegramClient):
         )
         if not cleanup_result.ok:
             message = (
-                t(_language(user_id), "back.cleanup_failed")
+                t("back.cleanup_failed")
                 if cleanup_result.reason == "qr_message_delete_failed"
-                else t(_language(user_id), "start.session_releasing")
+                else t("start.session_releasing")
             )
             await event.answer(message, alert=True)
             return
@@ -583,7 +574,7 @@ async def setup_account_handlers(bot: TelegramClient):
             await event.answer()
             await bot.send_message(
                 user_id,
-                t(_language(user_id), "account.add.choose"),
+                t("account.add.choose"),
                 buttons=add_account_method_buttons(user_id),
             )
         else:
@@ -601,13 +592,13 @@ async def setup_account_handlers(bot: TelegramClient):
             user_id, reason="add_account_phone"
         )
         if not cleanup_result.ok:
-            await event.answer(t(_language(user_id), "start.session_releasing"), alert=True)
+            await event.answer(t("start.session_releasing"), alert=True)
             return
 
         set_state(user_id, adding_account=True)
         await event.answer()
         status_message = await safe_edit(event,
-            t(_language(user_id), "account.phone.prompt"),
+            t("account.phone.prompt"),
             buttons=back_to_add_methods_buttons(user_id),
         )
         if not status_message:
@@ -626,11 +617,11 @@ async def setup_account_handlers(bot: TelegramClient):
             user_id, reason="add_account_qr"
         )
         if not cleanup_result.ok:
-            await event.answer(t(_language(user_id), "start.session_releasing"), alert=True)
+            await event.answer(t("start.session_releasing"), alert=True)
             return
 
         await event.answer()
-        status_message = await safe_edit(event, t(_language(user_id), "account.qr.generating"), buttons=back_to_add_methods_buttons(user_id))
+        status_message = await safe_edit(event, t("account.qr.generating"), buttons=back_to_add_methods_buttons(user_id))
         if not status_message:
             status_message = await event.get_message()
 
@@ -665,7 +656,7 @@ async def setup_account_handlers(bot: TelegramClient):
                 if state.get("qr_cancel_requested"):
                     return
                 qr_image = build_qr_image(qr_login.url)
-                qr_text = t(_language(user_id), "account.qr.instructions")
+                qr_text = t("account.qr.instructions")
                 status_message = await edit_status_or_send(
                     bot,
                     user_id,
@@ -695,14 +686,14 @@ async def setup_account_handlers(bot: TelegramClient):
             logger.exception(f"生成扫码登录二维码失败: 用户ID={user_id}")
             await AccountManager.cleanup_pending_login_state(user_id, reason="qr_create_error")
             error_text = (
-                t(_language(user_id), "account.qr.dependency_missing")
+                t("account.qr.dependency_missing")
                 if isinstance(e, QrDependencyError) else str(e)
             )
             replacement = await delete_qr_and_send_new(
                 bot,
                 user_id,
                 status_message,
-                t(_language(user_id), "account.qr.failed", error=error_text),
+                t("account.qr.failed", error=error_text),
                 buttons=back_to_add_methods_buttons(user_id),
             )
             if replacement is None:
@@ -718,12 +709,12 @@ async def setup_account_handlers(bot: TelegramClient):
             user_id, reason="upload_session"
         )
         if not cleanup_result.ok:
-            await event.answer(t(_language(user_id), "start.session_releasing"), alert=True)
+            await event.answer(t("start.session_releasing"), alert=True)
             return
 
         await event.answer()
         await safe_edit(event,
-            t(_language(user_id), "account.upload.prompt"),
+            t("account.upload.prompt"),
             buttons=back_to_add_methods_buttons(user_id),
         )
 
@@ -750,7 +741,7 @@ async def setup_account_handlers(bot: TelegramClient):
                     bot,
                     user_id,
                     phone_prompt_message,
-                    t(_language(user_id), "account.phone.invalid"),
+                    t("account.phone.invalid"),
                     buttons=back_to_add_methods_buttons(user_id),
                 )
                 state["phone_prompt_message"] = phone_prompt_message
@@ -764,7 +755,7 @@ async def setup_account_handlers(bot: TelegramClient):
                         bot,
                         user_id,
                         phone_prompt_message,
-                        localized_result(_language(user_id), existing.message),
+                        localized_result(existing.message),
                         buttons=back_to_add_methods_buttons(user_id),
                         parse_mode="md",
                     )
@@ -777,7 +768,7 @@ async def setup_account_handlers(bot: TelegramClient):
                         user_id,
                         phone_prompt_message,
                         render_login_code_rate_limit(
-                            rate_limit, _language(user_id)
+                            rate_limit
                         ),
                         buttons=back_to_add_methods_buttons(user_id),
                     )
@@ -799,7 +790,7 @@ async def setup_account_handlers(bot: TelegramClient):
                         bot,
                         user_id,
                         phone_prompt_message,
-                        localized_result(_language(user_id), result),
+                        localized_result(result),
                         buttons=back_to_add_methods_buttons(user_id),
                     )
                     retry_state = get_state(user_id)
@@ -818,7 +809,7 @@ async def setup_account_handlers(bot: TelegramClient):
                     edited_prompt = await bot.edit_message(
                         user_id,
                         phone_prompt_message,
-                        t(_language(user_id), "account.phone.prompt"),
+                        t("account.phone.prompt"),
                         buttons=None,
                     )
                 except MessageNotModifiedError:
@@ -831,7 +822,7 @@ async def setup_account_handlers(bot: TelegramClient):
                     auth_state["phone_prompt_message"] = phone_prompt_message
                     auth_state["phone_input_message"] = event
 
-                status_message = await bot.send_message(user_id, localized_result(_language(user_id), result), buttons=None)
+                status_message = await bot.send_message(user_id, localized_result(result), buttons=None)
                 if auth_state:
                     auth_state["login_status_message"] = status_message
                 if result.startswith("✅"):
@@ -846,7 +837,7 @@ async def setup_account_handlers(bot: TelegramClient):
                     bot,
                     user_id,
                     phone_prompt_message,
-                    t(_language(user_id), "account.client_failed", error=str(e)),
+                    t("account.client_failed", error=str(e)),
                     buttons=back_to_add_methods_buttons(user_id),
                 )
             return
@@ -864,7 +855,7 @@ async def setup_account_handlers(bot: TelegramClient):
                 bot,
                 user_id,
                 status_message,
-                localized_result(_language(user_id), result),
+                localized_result(result),
                 buttons=None,
             )
             if not current_state and result.startswith("✅"):
@@ -907,7 +898,7 @@ async def setup_account_handlers(bot: TelegramClient):
                         bot,
                         user_id,
                         previous_prompt,
-                        localized_result(_language(user_id), result),
+                        localized_result(result),
                         buttons=None,
                     )
                     qr_password_status_message = response
@@ -941,7 +932,7 @@ async def setup_account_handlers(bot: TelegramClient):
                     bot,
                     user_id,
                     status_message,
-                    localized_result(_language(user_id), result),
+                    localized_result(result),
                     buttons=None,
                 )
 
@@ -963,7 +954,7 @@ async def setup_account_handlers(bot: TelegramClient):
             if not is_upload_size_allowed(file_name, declared_size):
                 limit_text = "200 KB" if is_zip_upload else "40 KB"
                 await delete_sensitive_message(event, "oversized session upload")
-                await event.respond(t(_language(user_id), "account.upload.too_large", file=file_name, limit=limit_text), parse_mode="md")
+                await event.respond(t("account.upload.too_large", file=file_name, limit=limit_text), parse_mode="md")
                 return
 
             cleanup_result = await cancel_pending_login_flow(
@@ -971,13 +962,13 @@ async def setup_account_handlers(bot: TelegramClient):
             )
             if not cleanup_result.ok:
                 await delete_sensitive_message(event, "session upload while login cleanup blocked")
-                await event.respond(t(_language(user_id), "account.upload.releasing"))
+                await event.respond(t("account.upload.releasing"))
                 return
 
             temp_path = None
             upload_message_deleted = False
             try:
-                await event.respond(t(_language(user_id), "account.upload.processing"))
+                await event.respond(t("account.upload.processing"))
 
                 suffix = ".zip" if is_zip_upload else ".session"
                 fd, temp_path = tempfile.mkstemp(suffix=suffix)
@@ -990,7 +981,7 @@ async def setup_account_handlers(bot: TelegramClient):
                 actual_size = os.path.getsize(temp_path)
                 if not is_upload_size_allowed(file_name, actual_size):
                     limit_text = "200 KB" if is_zip_upload else "40 KB"
-                    await event.respond(t(_language(user_id), "account.upload.too_large", file=file_name, limit=limit_text), parse_mode="md")
+                    await event.respond(t("account.upload.too_large", file=file_name, limit=limit_text), parse_mode="md")
                     return
                 logger.debug(f"用户 {user_id} 上传文件: {file_name}")
 
@@ -998,13 +989,13 @@ async def setup_account_handlers(bot: TelegramClient):
                     try:
                         entries = find_zip_session_entries(temp_path)
                     except ZipSessionUploadError as error:
-                        await event.respond(render_zip_upload_error(error, _language(user_id)))
+                        await event.respond(render_zip_upload_error(error))
                         return
 
                     results = []
                     for entry in entries:
                         label = safe_archive_label(
-                            entry.filename, language=_language(user_id)
+                            entry.filename
                         )
                         extracted_path = None
                         try:
@@ -1036,7 +1027,7 @@ async def setup_account_handlers(bot: TelegramClient):
                                 except OSError:
                                     logger.warning(f"清理 ZIP Session 临时文件失败: {extracted_path}")
 
-                    await event.respond(render_zip_import_summary(results, _language(user_id)))
+                    await event.respond(render_zip_import_summary(results))
                     return
 
                 client, phone, success, failure_reason = await AccountManager.install_uploaded_session(
@@ -1048,36 +1039,35 @@ async def setup_account_handlers(bot: TelegramClient):
                     accounts = AccountManager.get_user_accounts(user_id)
                     if phone in accounts:
                         display_phone = accounts[phone].get('display_phone', phone)
-                        language = _language(user_id)
-                        anti_login_status = t(language, "account.upload.on") if accounts[phone]['anti_login'] else t(language, "account.upload.off")
+                        anti_login_status = t("account.upload.on") if accounts[phone]['anti_login'] else t("account.upload.off")
 
                         await event.respond(
-                            t(language, "account.upload.success", phone=display_phone,
+                            t("account.upload.success", phone=display_phone,
                               status=anti_login_status,
                               time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
                         )
                         logger.info(f"会话上传成功: {display_phone}")
                     else:
-                        await event.respond(t(_language(user_id), "account.upload.no_info"))
+                        await event.respond(t("account.upload.no_info"))
                 elif failure_reason == "invalid":
                     await event.respond(
-                        t(_language(user_id), "account.upload.invalid_format", file=file_name)
+                        t("account.upload.invalid_format", file=file_name)
                     )
                     logger.warning(f"会话文件格式无效: {file_name}")
                 elif failure_reason == "existing_session_busy":
-                    await event.respond(t(_language(user_id), "account.upload.busy"))
+                    await event.respond(t("account.upload.busy"))
                 elif failure_reason == "replace_failed_restored":
-                    await event.respond(t(_language(user_id), "account.upload.restore_ok"))
+                    await event.respond(t("account.upload.restore_ok"))
                 elif failure_reason == "replace_failed":
-                    await event.respond(t(_language(user_id), "account.upload.restore_failed"))
+                    await event.respond(t("account.upload.restore_failed"))
                 elif failure_reason == "quota_full":
-                    await event.respond(localized_result(_language(user_id), AccountManager.quota_error_message(user_id)))
+                    await event.respond(localized_result(AccountManager.quota_error_message(user_id)))
                 else:
-                    await event.respond(t(_language(user_id), "account.upload.invalid"))
+                    await event.respond(t("account.upload.invalid"))
                     logger.warning(f"会话文件无效: {event.file.name}")
 
             except Exception as e:
-                await event.respond(t(_language(user_id), "account.upload.failed", error=str(e)))
+                await event.respond(t("account.upload.failed", error=str(e)))
                 logger.error(f"处理会话文件失败: {str(e)}")
             finally:
                 if not upload_message_deleted:

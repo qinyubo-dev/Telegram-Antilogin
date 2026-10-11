@@ -23,15 +23,12 @@ logger = logging.getLogger(__name__)
 BACK_CUSTOM_EMOJI_ID = 5877629862306385808
 
 
-def back_button(data, user_id=None, language=None):
-    language = language or (
-        DataManager.get_user_language(user_id) if user_id is not None else "zh"
-    )
-    return Button.inline(t(language, "common.back"), data, icon=BACK_CUSTOM_EMOJI_ID)
+def back_button(data):
+    return Button.inline(t("common.back"), data, icon=BACK_CUSTOM_EMOJI_ID)
 
 
-def back_to_main_buttons(user_id=None, language=None):
-    return [[back_button(b"back_to_main", user_id=user_id, language=language)]]
+def back_to_main_buttons():
+    return [[back_button(b"back_to_main")]]
 
 
 _user_states = get_default_runtime().user_states
@@ -52,16 +49,16 @@ def paginate_items(items, page: int, page_size: int = 25):
     return items[start:start + page_size], page, max_page
 
 
-def pagination_buttons(prefix: str, page: int, max_page: int, language: str = "zh"):
+def pagination_buttons(prefix: str, page: int, max_page: int):
     if max_page <= 0:
         return []
 
     nav = []
     if page > 0:
-        nav.append(Button.inline(t(language, "common.previous"), f"{prefix}_{page - 1}".encode()))
+        nav.append(Button.inline(t("common.previous"), f"{prefix}_{page - 1}".encode()))
     nav.append(Button.inline(f"{page + 1}/{max_page + 1}", b"pagination_noop"))
     if page < max_page:
-        nav.append(Button.inline(t(language, "common.next"), f"{prefix}_{page + 1}".encode()))
+        nav.append(Button.inline(t("common.next"), f"{prefix}_{page + 1}".encode()))
     return nav
 
 
@@ -258,20 +255,19 @@ async def delete_remembered_flow_messages(user_id: int, preserve_message=None) -
 
 async def require_access(event, alert: bool = False) -> bool:
     if not account_runtime.is_ready():
-        language = DataManager.get_user_language(event.sender_id)
         if hasattr(event, "answer"):
-            await event.answer(t(language, "common.starting"), alert=alert)
+            await event.answer(t("common.starting"), alert=alert)
         else:
-            await event.respond(t(language, "common.starting"))
+            await event.respond(t("common.starting"))
         return False
 
     if AccountManager.check_access(event.sender_id):
         return True
 
     if hasattr(event, "answer"):
-        await event.answer(t(DataManager.get_user_language(event.sender_id), "common.no_access"), alert=alert)
+        await event.answer(t("common.no_access"), alert=alert)
     else:
-        await event.respond(t(DataManager.get_user_language(event.sender_id), "common.no_access"))
+        await event.respond(t("common.no_access"))
     return False
 
 
@@ -279,9 +275,8 @@ async def require_admin(event, alert: bool = False) -> bool:
     if DataManager.is_admin(event.sender_id):
         return True
 
-    language = DataManager.get_user_language(event.sender_id)
     if hasattr(event, "answer"):
-        await event.answer(t(language, "admin.access_denied"), alert=alert)
+        await event.answer(t("admin.access_denied"), alert=alert)
     else:
-        await event.respond(t(language, "admin.access_denied"))
+        await event.respond(t("admin.access_denied"))
     return False

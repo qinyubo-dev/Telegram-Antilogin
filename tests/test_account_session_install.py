@@ -228,7 +228,6 @@ def test_backup_and_new_client_constructors(tmp_path):
         return_value=SessionCleanupResult(True, "remove", "removed"),
     ):
         assert run(AccountManager.create_new_client("+1", 1)) is client
-        assert client._pending_display_phone
     qr = tmp_path / "1_qr.session"
     qr.write_bytes(b"x")
     with patch.object(module, "PENDING_SESSIONS_DIR", str(tmp_path)), patch.object(

@@ -403,9 +403,8 @@ class PaymentSystem:
             if admin_id in notified:
                 continue
             try:
-                language = DataManager.get_user_language(admin_id)
                 localized_message = (
-                    message(admin_id, language) if callable(message) else message
+                    message(admin_id) if callable(message) else message
                 )
                 await self.bot.send_message(admin_id, localized_message)
                 account_runtime.mark_notify_bot_healthy()
@@ -434,25 +433,23 @@ class PaymentSystem:
             return
         is_custom_plus = self._is_custom_plus(order)
 
-        def message(_admin_id, language):
+        def message(_admin_id):
             raw_plan_id = str(order.get("plan_id") or "-").lower()
             try:
-                plan_name = t(language, f"admin.notification.plan_name.{raw_plan_id}")
+                plan_name = t(f"admin.notification.plan_name.{raw_plan_id}")
             except KeyError:
                 plan_name = raw_plan_id.upper()
-            plan_title = t(
-                language, "admin.notification.plan",
+            plan_title = t("admin.notification.plan",
                 badge=DataManager.get_subscription_badge(raw_plan_id),
                 plan=plan_name,
-                custom=t(language, "admin.notification.custom_plan_suffix")
+                custom=t("admin.notification.custom_plan_suffix")
                 if is_custom_plus else "",
             )
             seat_line = (
-                t(language, "admin.notification.custom_seats", quota=order.get("quota"))
+                t("admin.notification.custom_seats", quota=order.get("quota"))
                 if is_custom_plus else ""
             )
-            return t(
-                language, "admin.notification.new_subscription",
+            return t("admin.notification.new_subscription",
                 user_id=order.get("user_id"), plan=plan_title, seat_line=seat_line,
                 days=order.get("period_days", 30), amount=order.get("amount"),
                 coin=order.get("coin", "USDT"), order_id=order_id,
@@ -466,14 +463,13 @@ class PaymentSystem:
     async def _notify_admin_order_exception(self, order_id: str, reason: str) -> None:
         order = self.pending_orders.get(order_id) or {}
 
-        def message(_admin_id, language):
+        def message(_admin_id):
             try:
-                reason_text = t(language, f"admin.reason.{reason}")
+                reason_text = t(f"admin.reason.{reason}")
             except KeyError:
                 reason_text = str(reason)
-            unknown = t(language, "admin.common.unknown")
-            return t(
-                language, "admin.notification.order_exception", reason=reason_text,
+            unknown = t("admin.common.unknown")
+            return t("admin.notification.order_exception", reason=reason_text,
                 user_id=order.get("user_id", unknown),
                 order_type=order.get("type", unknown), amount=order.get("amount", unknown),
                 coin=order.get("coin", "USDT"), status=order.get("status", unknown),
@@ -902,15 +898,7 @@ class PaymentSystem:
             result = await self._check_order_status_unlocked(order_id)
         self._rebuild_active_order_ids()
         if not result.get("success") and result.get("error"):
-            order = self.pending_orders.get(order_id, {})
-            user_id = order.get("user_id")
-            language = (
-                DataManager.get_user_language(int(user_id))
-                if user_id is not None else "zh"
-            )
-            result["error"] = localized_payment_error(
-                language, result.get("error")
-            )
+            result["error"] = localized_payment_error(result.get("error"))
         return result
 
     async def _check_order_status_unlocked(self, order_id: str) -> Dict[str, Any]:
@@ -1007,23 +995,18 @@ class PaymentSystem:
             return
         try:
             user_id = int(order["user_id"])
-            language = DataManager.get_user_language(user_id)
             quota = order.get('quota')
-            quota_text = t(language, "plans.quota_unlimited") if quota is None else str(quota)
+            quota_text = t("plans.quota_unlimited") if quota is None else str(quota)
             plan = str(order.get('plan_id', '')).upper()
             period_days = int(order.get('period_days', 30))
             discount = ""
             if period_days > 30 and Decimal(str(
                 order.get('actual_discount_percent', '0')
             )) > 0:
-                discount = t(
-                    language,
-                    "payment.fulfilled_discount",
+                discount = t("payment.fulfilled_discount",
                     percent=_display_percent(order.get('actual_discount_percent', '0')),
                 )
-            detail = t(
-                language,
-                "payment.fulfilled_standard",
+            detail = t("payment.fulfilled_standard",
                 plan=plan,
                 quota=quota_text,
                 days=period_days,
@@ -1032,13 +1015,13 @@ class PaymentSystem:
             subscription = DataManager.get_subscription(int(order['user_id'])) or {}
             buttons = None
             if subscription.get('selection_required'):
-                detail += t(language, "payment.fulfilled_selection")
+                detail += t("payment.fulfilled_selection")
                 buttons = [[Button.inline(
-                    t(language, "vip.select_accounts"), b"subscription_accounts"
+                    t("vip.select_accounts"), b"subscription_accounts"
                 )]]
             await self.bot.send_message(
                 user_id,
-                t(language, "payment.confirmed", detail=detail,
+                t("payment.confirmed", detail=detail,
                   amount=order['amount'], coin=order['coin'], order_id=order_id),
                 buttons=buttons,
             )
@@ -1073,35 +1056,33 @@ class PaymentSystem:
 
     @staticmethod
     def _subscription_plan_title(
-        quote: Mapping[str, Any], language: str = "zh"
+        quote: Mapping[str, Any]
     ) -> str:
         plan_id = str(quote.get('plan_id', '')).lower()
         key = f"payment.plan.{plan_id}"
         title = (
-            t(language, key)
+            t(key)
             if key in {"payment.plan.go", "payment.plan.plus", "payment.plan.pro"}
             else str(quote.get('plan_name', plan_id)).upper()
         )
         if PaymentSystem._is_custom_plus(quote):
-            title += t(language, "payment.plan.custom")
+            title += t("payment.plan.custom")
         badge = DataManager.get_subscription_badge(plan_id)
         return f'{badge} {title}'
 
     @staticmethod
     def _subscription_payment_name(
-        quote: Mapping[str, Any], language: str = "zh"
+        quote: Mapping[str, Any]
     ) -> str:
         """生成展示在支付渠道中的尊享订阅名称。"""
-        title = PaymentSystem._subscription_plan_title(quote, language)
+        title = PaymentSystem._subscription_plan_title(quote)
         is_custom_plus = PaymentSystem._is_custom_plus(quote)
         quota = quote.get('quota')
         seat_suffix = (
-            t(language, "payment.provider.seats", quota=quota)
+            t("payment.provider.seats", quota=quota)
             if is_custom_plus else ""
         )
-        return t(
-            language,
-            "payment.provider.subscription",
+        return t("payment.provider.subscription",
             title=title,
             days=int(quote.get('period_days', 30)),
             seats=seat_suffix,
@@ -1115,21 +1096,20 @@ class PaymentSystem:
             if DataManager.is_admin(user_id):
                 return {
                     'success': False,
-                    'error': t(DataManager.get_user_language(user_id), "payment.error.admin"),
+                    'error': t("payment.error.admin"),
                 }
             await self._expire_stale_subscription_orders_for_user(user_id)
             if self._has_open_subscription_order(user_id):
                 return {
                     'success': False,
-                    'error': t(DataManager.get_user_language(user_id), "payment.error.open_order"),
+                    'error': t("payment.error.open_order"),
                 }
             try:
                 base_quote = DataManager.quote_subscription(plan_id, quota, 30)
             except ValueError as error:
                 return {
                     'success': False,
-                    'error': localized_payment_error(
-                        DataManager.get_user_language(user_id), error
+                    'error': localized_payment_error(error
                     ),
                 }
             change = DataManager.classify_subscription_change(
@@ -1138,15 +1118,14 @@ class PaymentSystem:
             if change == 'conflict':
                 return {
                     'success': False,
-                    'error': t(DataManager.get_user_language(user_id), "payment.error.scheduled_conflict"),
+                    'error': t("payment.error.scheduled_conflict"),
                 }
             try:
                 quote = DataManager.quote_subscription(plan_id, quota, period_days)
             except ValueError as error:
                 return {
                     'success': False,
-                    'error': localized_payment_error(
-                        DataManager.get_user_language(user_id), error
+                    'error': localized_payment_error(error
                     ),
                 }
             amount = quote['price']
@@ -1156,8 +1135,7 @@ class PaymentSystem:
                     f"sub-{user_id}-{quote['plan_id']}-{time.time_ns() // 1_000_000}-"
                     f"{secrets.token_hex(4)}"
                 )
-            language = DataManager.get_user_language(user_id)
-            name = self._subscription_payment_name(quote, language=language)
+            name = self._subscription_payment_name(quote)
             metadata = {
                 'user_id': int(user_id), 'type': 'subscription_purchase',
                 'plan_id': quote['plan_id'], 'quota': quote['quota'],
@@ -1180,8 +1158,7 @@ class PaymentSystem:
                 _order_metadata=metadata,
             )
             if not result.get("success"):
-                result["error"] = localized_payment_error(
-                    language, result.get("error")
+                result["error"] = localized_payment_error(result.get("error")
                 )
             return result
 
@@ -1193,26 +1170,23 @@ class PaymentSystem:
 
     async def _cancel_order(self, order_id: str, user_id: int) -> Dict[str, Any]:
         """Cancel a locally pending order after one final remote status check."""
-        language = DataManager.get_user_language(user_id)
         async with self._get_order_lock(order_id):
             order = self.pending_orders.get(order_id)
             if not order or order.get('user_id') != int(user_id):
-                return {'success': False, 'error': t(language, "payment.error.order_owner")}
+                return {'success': False, 'error': t("payment.error.order_owner")}
             if order.get('processed') or order.get('status') == 'paid':
-                return {'success': False, 'status': 'paid', 'error': t(language, "payment.error.order_paid")}
+                return {'success': False, 'status': 'paid', 'error': t("payment.error.order_paid")}
             if order.get('status') == 'cancelled':
                 return {'success': True, 'status': 'cancelled', 'already_cancelled': True}
 
             status = await self._check_order_status_unlocked(order_id)
             if status.get('success') and status.get('status') == 'paid':
-                return {'success': False, 'status': 'paid', 'error': t(language, "payment.error.order_active")}
+                return {'success': False, 'status': 'paid', 'error': t("payment.error.order_active")}
             if not status.get('success'):
                 return {
                     'success': False,
-                    'error': t(
-                        language,
-                        "payment.error.cancel_check",
-                        error=localized_payment_error(language, status.get('error', 'unknown')),
+                    'error': t("payment.error.cancel_check",
+                        error=localized_payment_error(status.get('error', 'unknown')),
                     ),
                 }
 
@@ -1227,7 +1201,7 @@ class PaymentSystem:
             if not self._save_orders():
                 order.clear()
                 order.update(previous_order)
-                return {'success': False, 'error': t(language, "payment.error.cancel_save")}
+                return {'success': False, 'error': t("payment.error.cancel_save")}
             logger.info('用户取消支付订单: %s, user_id=%s', order_id, user_id)
             return {'success': True, 'status': 'cancelled'}
 
@@ -1266,7 +1240,7 @@ class PaymentSystem:
             if not isinstance(created_time, (int, float)):
                 if not order.get("auto_check_stopped"):
                     order["auto_check_stopped"] = True
-                    order["auto_check_stop_reason"] = "legacy_order_missing_created_time"
+                    order["auto_check_stop_reason"] = "missing_created_time"
                     stopped_changed = True
                 continue
             if (

@@ -14,7 +14,7 @@ from accounts import account_runtime
 from localization import t
 from storage.data_manager import DataManager
 import settings as config
-from user_timezones import timezone_text
+from china_time import timezone_text
 
 
 logger = logging.getLogger(__name__)
@@ -60,20 +60,15 @@ def utc_iso(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat()
 
 
-def beijing_text(value: datetime) -> str:
-    """Backward-compatible helper retained for existing callers and tests."""
-    return timezone_text(value)
-
-
-def format_offset(offset_seconds: int, language: str = "zh") -> str:
+def format_offset(offset_seconds: int) -> str:
     seconds = max(1, int(offset_seconds))
     if seconds < 60:
-        return t(language, "login_unlock.offset_seconds", value=seconds)
-    return t(language, "login_unlock.offset_minutes", value=seconds // 60)
+        return t("login_unlock.offset_seconds", value=seconds)
+    return t("login_unlock.offset_minutes", value=seconds // 60)
 
 
-def format_limit(limit: Optional[int], language: str = "zh") -> str:
-    return t(language, "login_unlock.unlimited") if limit is None else str(limit)
+def format_limit(limit: Optional[int]) -> str:
+    return t("login_unlock.unlimited") if limit is None else str(limit)
 
 
 def parse_schedule_offsets(text: object, count: int) -> List[int]:
@@ -243,22 +238,17 @@ class LoginUnlockReminderSystem:
     def render_schedule_result(
         self,
         result: LoginUnlockScheduleResult,
-        language: str,
     ) -> str:
         unlock = timezone_text(result.unlock_at)
-        quota = f"{result.used} / {format_limit(result.limit, language)}"
+        quota = f"{result.used} / {format_limit(result.limit)}"
         if result.status == "scheduled":
             reminder_list = "\n".join(
-                t(
-                    language,
-                    "login_unlock.reminder_time_line",
+                t("login_unlock.reminder_time_line",
                     time=timezone_text(value),
                 )
                 for value in result.reminder_times if value is not None
             )
-            return t(
-                language,
-                "login_unlock.scheduled",
+            return t("login_unlock.scheduled",
                 phone=result.phone,
                 seconds=result.wait_seconds,
                 unlock=unlock,
@@ -266,25 +256,21 @@ class LoginUnlockReminderSystem:
                 quota=quota,
             )
         if result.status == "immediate":
-            return t(
-                language,
-                "login_unlock.immediate",
+            return t("login_unlock.immediate",
                 phone=result.phone,
                 seconds=result.wait_seconds,
                 unlock=unlock,
             )
         if result.status == "full":
-            return t(
-                language,
-                "login_unlock.full",
+            return t("login_unlock.full",
                 phone=result.phone,
                 seconds=result.wait_seconds,
                 unlock=unlock,
                 quota=quota,
             )
         if result.status == "no_access":
-            return t(language, "common.no_access")
-        return t(language, "login_unlock.save_failed", unlock=unlock)
+            return t("common.no_access")
+        return t("login_unlock.save_failed", unlock=unlock)
 
     async def remove(self, user_id: int, phone: str) -> bool:
         async with self._lock:
@@ -365,15 +351,12 @@ class LoginUnlockReminderSystem:
     async def _send(self, user_id: int, record: Dict, node: Dict) -> bool:
         from accounts.account_manager import AccountManager
 
-        language = DataManager.get_user_language(user_id)
         unlock_at = parse_utc(record.get("unlock_at"))
         if unlock_at is None:
             return True
-        text = t(
-            language,
-            "login_unlock.notification",
+        text = t("login_unlock.notification",
             phone=record.get("phone", ""),
-            remaining=format_offset(int(node["offset_seconds"]), language),
+            remaining=format_offset(int(node["offset_seconds"])),
             unlock=timezone_text(unlock_at),
         )
         return bool(await AccountManager._safe_send_bot_message(

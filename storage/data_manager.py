@@ -13,7 +13,6 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_DOWN
 from typing import Dict, List, Optional
 import settings as config
-from localization import DEFAULT_LANGUAGE
 
 logger = logging.getLogger(__name__)
 
@@ -275,11 +274,6 @@ class DataManager:
     def is_admin(user_id: int) -> bool:
         """检查是否为管理员"""
         return user_id in ADMIN_IDS
-
-    @staticmethod
-    def get_user_language(user_id: int) -> str:
-        """The bot is Chinese-only; kept so call sites can keep passing a language."""
-        return DEFAULT_LANGUAGE
 
     @staticmethod
     def has_active_subscription(user_id: int) -> bool:

@@ -146,10 +146,10 @@ class ReminderSystem:
                 ):
                     try:
                         if days_left == 0:
-                            message = t(DataManager.get_user_language(user_id), "reminder.today",
+                            message = t("reminder.today",
                                         expiry=expiry_date.strftime('%Y-%m-%d %H:%M'))
                         else:
-                            message = t(DataManager.get_user_language(user_id), "reminder.soon",
+                            message = t("reminder.soon",
                                         days=days_left,
                                         expiry=expiry_date.strftime('%Y-%m-%d %H:%M'))
                         

@@ -19,11 +19,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_localization_fallbacks():
-    assert localization.t("unsupported", "common.back") == localization.t("zh", "common.back")
     with pytest.raises(KeyError, match="unknown localization key"):
-        localization.t("zh", "missing.key")
-    assert localization.localized_result("zh", "验证码已发送") == "验证码已发送"
-    assert localization.localized_payment_error("zh", None) == ""
+        localization.t("missing.key")
+    assert localization.localized_result("验证码已发送") == "验证码已发送"
+    assert localization.localized_payment_error(None) == ""
 
 
 def test_settings_numeric_paths_and_validation(tmp_path):

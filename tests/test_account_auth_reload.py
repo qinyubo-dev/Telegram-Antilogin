@@ -19,7 +19,6 @@ from telethon.errors import (
 from accounts import account_manager as module
 from accounts.account_manager import AccountManager, user_accounts, user_states
 from accounts.models import ExistingAccountCheck
-from storage.data_manager import DataManager
 
 
 def run(awaitable):
@@ -312,18 +311,3 @@ def test_reload_does_not_reopen_session_when_disconnect_fails(tmp_path):
     assert result["failed"] == 1
     assert result["fail_reasons"] == {"session_busy": 1}
     create.assert_not_awaited()
-
-def test_disable_account_success_and_missing(tmp_path):
-    path = tmp_path / "x.session"
-    path.write_bytes(b"")
-    user_accounts[1] = {
-        "+1": {"client": client_stub(), "session_file": path.name}
-    }
-    with patch.object(module, "SESSIONS_DIR", str(tmp_path)), patch.object(
-        AccountManager, "_cancel_client_task", new=AsyncMock()
-    ), patch.object(AccountManager, "_cancel_account_auxiliary_tasks", new=AsyncMock()), patch.object(
-        AccountManager, "_safe_disconnect_client", new=AsyncMock()
-    ), patch.object(AccountManager, "backup_session_file", new=AsyncMock()) as backup:
-        assert run(AccountManager.disable_account(1, "+1"))
-    backup.assert_awaited_once()
-    assert not run(AccountManager.disable_account(1, "+1"))

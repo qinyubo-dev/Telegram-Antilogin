@@ -128,7 +128,7 @@ def test_new_device_action_invalid_missing_failure_unresolved_and_success(
     success = event_factory(
         data=b"nda:a:123:9",
         get_message=AsyncMock(return_value=SimpleNamespace(
-            raw_text="Header\n\n" + antilogin_handlers.t("zh", "device.choose")
+            raw_text="Header\n\n" + antilogin_handlers.t("device.choose")
         )),
     )
     with patch(

@@ -8,9 +8,6 @@ from __future__ import annotations
 from typing import Dict
 
 
-DEFAULT_LANGUAGE = "zh"
-SUPPORTED_LANGUAGES = ("zh",)
-
 
 ZH: Dict[str, str] = {
     "common.back": "返回",
@@ -814,8 +811,8 @@ ZH.update(ADMIN_ZH)
 ZH.update(USER_RESULT_ZH)
 
 
-def t(language: str, key: str, **values: object) -> str:
-    """Return the Chinese text for a key; ``language`` is kept for call-site compatibility."""
+def t(key: str, **values: object) -> str:
+    """Return the Chinese text for a key."""
     try:
         template = ZH[key]
     except KeyError as error:
@@ -823,9 +820,9 @@ def t(language: str, key: str, **values: object) -> str:
     return template.format(**values)
 
 
-def localized_payment_error(language: str, value: object) -> str:
+def localized_payment_error(value: object) -> str:
     return str(value or "")
 
 
-def localized_result(language: str, value: object) -> str:
+def localized_result(value: object) -> str:
     return str(value or "")
