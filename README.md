@@ -6,7 +6,7 @@
 
 > Developed and open-sourced by 秦屿泊 (@qinyubo). Free for everyone to use and modify under the MIT License.
 
-## 功能
+## 功能特点
 
 - 异常登录验证码强制失效，降低账户被登录的风险
 - 多账户托管：获取验证码、终止其他会话、二级密码、账户清理

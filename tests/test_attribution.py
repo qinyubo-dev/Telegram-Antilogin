@@ -1,0 +1,37 @@
+# Copyright (c) 2026 秦屿泊 (@qinyubo)
+# SPDX-License-Identifier: MIT
+
+import pytest
+
+import localization
+import project_info
+
+
+def test_attribution_passes_for_unmodified_project():
+    project_info.verify_attribution()
+
+
+def test_modified_notice_blocks_startup(monkeypatch):
+    monkeypatch.setattr(project_info, "COPYRIGHT_NOTICE", "© someone else")
+    with pytest.raises(RuntimeError, match="版权声明"):
+        project_info.verify_attribution()
+
+
+def test_modified_attribution_blocks_startup(monkeypatch):
+    monkeypatch.setattr(project_info, "PROJECT_ATTRIBUTION", "removed")
+    with pytest.raises(RuntimeError):
+        project_info.verify_attribution()
+
+
+def test_admin_panel_without_copyright_placeholder_blocks_startup(monkeypatch):
+    patched = dict(localization.ZH)
+    patched["admin.panel.text"] = "panel"
+    monkeypatch.setattr(localization, "ZH", patched)
+    with pytest.raises(RuntimeError):
+        project_info.verify_attribution()
+
+
+def test_missing_license_blocks_startup(monkeypatch):
+    monkeypatch.setattr(project_info.os.path, "dirname", lambda _path: "/nonexistent")
+    with pytest.raises(RuntimeError):
+        project_info.verify_attribution()

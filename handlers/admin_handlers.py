@@ -21,6 +21,7 @@ from storage.data_manager import DataManager
 from storage.user_profile_cache import UserProfileCache
 from handlers.handler_utils import back_button, clear_state, edit_or_respond, get_state, paginate_items, pagination_buttons, require_admin, safe_edit, set_state
 from localization import localized_result, t
+from project_info import COPYRIGHT_NOTICE
 from accounts import account_runtime
 from reminders.login_unlock_reminder import (
     ReminderScheduleValidationError,
@@ -875,6 +876,7 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             review_orders=review_orders,
             revenue=_format_amounts(today_report["amounts"]),
             new_paid_users=today_report["new_paid_users"], updated_at=now_str,
+            copyright=COPYRIGHT_NOTICE,
         )
 
         buttons = [

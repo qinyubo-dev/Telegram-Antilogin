@@ -22,7 +22,7 @@ from reminders.reminder_system import ReminderSystem
 from reminders.login_unlock_reminder import LoginUnlockReminderSystem
 from handlers.bot_handlers import setup_bot_handlers
 from localization import t
-from project_info import PROJECT_ATTRIBUTION
+from project_info import PROJECT_ATTRIBUTION, verify_attribution
 import settings as config
 
 
@@ -598,6 +598,7 @@ async def main():
     instance_lock = None
     pid_path = None
     try:
+        verify_attribution()
         account_runtime.mark_not_ready()
         config.validate_runtime_settings()
         configure_logging()
