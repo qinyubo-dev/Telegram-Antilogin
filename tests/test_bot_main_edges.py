@@ -251,6 +251,6 @@ def test_main_startup_and_shutdown(tmp_path, monkeypatch):
     payment.start_monitoring.assert_awaited_once()
     reminder.start_monitoring.assert_awaited_once()
     assert bot.send_message.await_count == 2
-    assert "系统已完成初始化" in bot.send_message.await_args_list[0].args[1]
-    assert "系统已完成初始化" in bot.send_message.await_args_list[1].args[1]
+    assert "初始化完成" in bot.send_message.await_args_list[0].args[1]
+    assert "初始化完成" in bot.send_message.await_args_list[1].args[1]
     bot_main.subscription_task = None

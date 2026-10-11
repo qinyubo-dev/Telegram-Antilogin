@@ -1762,13 +1762,13 @@ class AdminPanelConfigurationFlowTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("在线账户", text)
         buttons = event.edit.await_args.kwargs["buttons"]
         self.assertEqual(
-            [[button.text for button in row] for row in buttons[:-1]],
+            [[button.text for button in row] for row in buttons],
             [
                 ["订单中心", "用户搜索"],
                 ["发放订阅", "删除订阅"],
                 ["方案设置", "运营报表"],
                 ["审计日志", "提醒设置"],
-                ["刷新数据"],
+                ["刷新数据", "返回"],
             ],
         )
         button_by_text = {button.text: button for row in buttons for button in row}

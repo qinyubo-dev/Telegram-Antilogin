@@ -17,7 +17,7 @@ from telethon.tl.custom import Button
 from accounts.account_manager import AccountManager, user_accounts
 from payments.payment_system import PaymentSystem
 from storage.admin_audit import AdminAuditLog, audit_file_path, mask_phone, phone_digest
-from storage.data_manager import DataManager
+from storage.data_manager import DataManager, user_data
 from storage.user_profile_cache import UserProfileCache
 from handlers.handler_utils import back_button, clear_state, edit_or_respond, get_state, paginate_items, pagination_buttons, require_admin, safe_edit, set_state
 from localization import localized_result, t
@@ -879,8 +879,7 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             [Button.inline(t("admin.panel.grant"), b"admin_subscription_grant_help", icon=5775937998948404844), Button.inline(t("admin.panel.delete"), b"admin_subscription_delete_help", icon=5879896690210639947)],
             [Button.inline(t("admin.panel.config"), b"admin_subscription_config", icon=5879841310902324730), Button.inline(t("admin.panel.report"), b"admin_report_1", icon=5994378914636500516)],
             [Button.inline(t("admin.panel.audit"), b"admin_audit_0", icon=5877597667231534929), Button.inline(t("admin.panel.reminders"), b"admin_reminder_settings", icon=5909201569898827582)],
-            [Button.inline(t("admin.panel.refresh"), b"admin_panel", icon=5877410604225924969)],
-            [back_button(b"back_to_main")]
+            [Button.inline(t("admin.panel.refresh"), b"admin_panel", icon=5877410604225924969), back_button(b"back_to_main")]
         ]
 
         try:
@@ -1244,7 +1243,58 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         await safe_edit(
             event,
             t("admin.user.search_prompt"),
-            buttons=[[back_button(b"admin_panel")]],
+            buttons=[
+                [
+                    Button.inline(t("admin.user.category.all"), b"admin_ucat_all_0"),
+                    Button.inline(t("admin.user.category.go"), b"admin_ucat_go_0"),
+                ],
+                [
+                    Button.inline(t("admin.user.category.plus"), b"admin_ucat_plus_0"),
+                    Button.inline(t("admin.user.category.pro"), b"admin_ucat_pro_0"),
+                    Button.inline(t("admin.user.category.expired"), b"admin_ucat_expired_0"),
+                ],
+                [back_button(b"admin_panel")],
+            ],
+        )
+
+    def _users_in_category(category):
+        if category == "expired":
+            return sorted(
+                uid for uid, info in user_data.items()
+                if isinstance(uid, int) and (info.get("subscription") or {}).get("plan_id")
+                and not DataManager.has_active_subscription(uid)
+            )
+        users = DataManager.get_all_subscription_users()
+        if category != "all":
+            users = [
+                user for user in users
+                if (DataManager.get_subscription(user["user_id"]) or {}).get("plan_id") == category
+            ]
+        return [user["user_id"] for user in users]
+
+    @bot.on(events.CallbackQuery(pattern=rb"^admin_ucat_(all|go|plus|pro|expired)_\d+$"))
+    async def admin_user_category(event):
+        if not await require_admin(event, alert=True):
+            return
+        _, _, category, page = event.data.decode().split("_")
+        _clear_admin_input_state(event.sender_id)
+        user_ids = _users_in_category(category)
+        page_items, page, max_page = paginate_items(user_ids, int(page), page_size=20)
+        set_state(event.sender_id, admin_user_back=f"admin_ucat_{category}_{page}")
+        buttons = []
+        for uid in page_items:
+            name = await _get_user_display_name(bot, uid)
+            label = f"{name} · {uid}" if name else t("admin.user.fallback_name", user_id=uid)
+            buttons.append([Button.inline(label[:58], f"admin_user_detail_{uid}".encode())])
+        nav = pagination_buttons(f"admin_ucat_{category}", page, max_page)
+        if nav:
+            buttons.append(nav)
+        buttons.append([back_button(b"admin_user_search")])
+        await event.answer()
+        await edit_or_respond(
+            event,
+            t("admin.user.category_list", title=t(f"admin.user.category.{category}"), count=len(user_ids)),
+            buttons=buttons,
         )
 
     @bot.on(events.CallbackQuery(pattern=b"admin_user_search_results"))

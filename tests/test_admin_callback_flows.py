@@ -106,6 +106,25 @@ def test_order_lists(handler_bot, event_factory, category):
     assert payment.list_admin_orders.call_count == 1
 
 
+@pytest.mark.parametrize("category,expected", [("all", 2), ("go", 1), ("pro", 0)])
+def test_user_search_category_lists(handler_bot, event_factory, category, expected):
+    bot, _ = register(handler_bot)
+    users = [{"user_id": 2}, {"user_id": 3}]
+    plans = {2: {"plan_id": "go"}, 3: {"plan_id": "plus"}}
+    event = event_factory(data=f"admin_ucat_{category}_0".encode())
+    with common_patches()[0], patch(
+        "handlers.admin_handlers.DataManager.get_all_subscription_users", return_value=users
+    ), patch(
+        "handlers.admin_handlers.DataManager.get_subscription", side_effect=lambda uid, **kw: plans[uid]
+    ), patch(
+        "handlers.admin_handlers._get_user_display_name", new=AsyncMock(return_value="User")
+    ), patch("handlers.admin_handlers.edit_or_respond", new=AsyncMock()) as edit:
+        run(bot.find("admin_user_category")(event))
+    buttons = edit.await_args.kwargs["buttons"]
+    assert len(buttons) - 1 == expected
+    assert admin_handlers.get_state(1001)["admin_user_back"] == f"admin_ucat_{category}_0"
+
+
 def test_order_search_prompt(handler_bot, event_factory):
     bot, _ = register(handler_bot)
     event = event_factory(data=b"admin_order_search")

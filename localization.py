@@ -25,7 +25,7 @@ ZH: Dict[str, str] = {
     "main.vip_center": "VIP 中心",
     "main.transfer_account": "转让账户",
     "main.reload": "重新加载",
-    "main.antilogin": "反登录设置",
+    "main.antilogin": "保护设置",
     "main.support": "客服支持",
     "main.help": "帮助信息",
     "main.admin": "管理面板",
@@ -74,12 +74,12 @@ ZH: Dict[str, str] = {
         "• 将符合条件的账户转给其他 VIP 用户\n"
         "• 首次创建满 24 小时后可转让；每次转让间隔 1 小时\n"
         "• 上传 Session 添加的账户不可转让，转让不可撤销\n\n"
-        "⑤ 反登录设置\n"
+        "⑤ 保护设置\n"
         "• 为指定账户开启或暂停防护\n"
         "• 删除会销毁 Session 并移除托管账户，且不可撤销\n\n"
         "⑥ 重新加载\n"
         "• 立即刷新账户运行状态\n\n"
-        "⑦ 登录解限提醒\n"
+        "⑦ 解限提醒\n"
         "• 登录受限时自动读取官方秒数，也可手动检测并管理提醒\n"
         "• 使用独立监听额度，不占托管账户配额\n\n"
         "⑧ VIP 中心\n"
@@ -457,6 +457,12 @@ ADMIN_ZH: Dict[str, str] = {
     "admin.user.search_title": "🔎 用户搜索结果\n\n共 {count} 条{warning}",
     "admin.user.search_audit_warning": "\n\n⚠️ 查询成功，但审计记录失败。",
     "admin.user.search_prompt": "🔎 全局用户搜索\n\n请输入用户 ID、@用户名、显示名称或完整托管手机号：",
+    "admin.user.category.all": "全部订阅",
+    "admin.user.category.go": "GO",
+    "admin.user.category.plus": "PLUS",
+    "admin.user.category.pro": "PRO",
+    "admin.user.category.expired": "已过期",
+    "admin.user.category_list": "👥 {title}\n\n共 {count} 位用户，点击查看详情。",
     "admin.user.search_expired": "搜索结果已失效，请重新搜索",
     "admin.user.fallback_name": "用户 {user_id}",
     "admin.user.detail": (
@@ -671,8 +677,7 @@ ADMIN_ZH: Dict[str, str] = {
     "admin.reason.fulfillment_failed": "支付已确认，但权益发放失败",
     "admin.reason.local_order_save_failed": "支付链接已创建，但本地订单保存失败",
     "admin.notification.startup": (
-        "🛡 𝑨𝒏𝒕𝒊𝒍𝒐𝒈𝒊𝒏 系统已完成初始化\n\n安全矩阵部署完成。\n"
-        "监控核心节点运行正常。\n风险识别模块已激活。\n\n当前状态：STABLE\n防护等级：FULL PROTECTION"
+        "🛡 Antilogin 初始化完成"
     ),
     "admin.notification.new_subscription": (
         "💎 新订阅开通\n\n用户 ID：`{user_id}`\n订阅方案：{plan}\n{seat_line}"
