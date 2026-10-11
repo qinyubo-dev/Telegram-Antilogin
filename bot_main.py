@@ -311,6 +311,9 @@ def configure_logging():
 logger = logging.getLogger(__name__)
 
 
+PID_FILE_NAME = ".anti_login.pid"
+
+
 class ProcessInstanceLock:
     """Cross-platform advisory lock held for the complete bot process lifetime."""
 
@@ -593,6 +596,7 @@ async def _start_notify_bot() -> None:
 async def main():
     global bot, payment_system, reminder_system, login_unlock_reminder_system, subscription_task
     instance_lock = None
+    pid_path = None
     try:
         account_runtime.mark_not_ready()
         config.validate_runtime_settings()
@@ -609,6 +613,9 @@ async def main():
             raise RuntimeError(
                 "另一个 AntiLogin 进程正在使用同一 sessions 目录，拒绝重复启动"
             )
+        pid_path = os.path.join(config.SESSIONS_DIR, PID_FILE_NAME)
+        with open(pid_path, "w", encoding="ascii") as stream:
+            stream.write(str(os.getpid()))
         logger.info(
             "运行实例锁已取得: build=%s, telethon=%s, sessions=%s",
             _build_revision(),
@@ -708,6 +715,11 @@ async def main():
         try:
             await cleanup()
         finally:
+            if pid_path:
+                try:
+                    os.remove(pid_path)
+                except OSError:
+                    pass
             if instance_lock:
                 instance_lock.release()
 
