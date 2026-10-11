@@ -385,7 +385,10 @@ ADMIN_ZH: Dict[str, str] = {
         "📈 **今日运营**\n"
         "• 订阅收入：{revenue}\n"
         "• 新增付费用户：{new_paid_users} 人\n\n"
-        "🕒 更新：{updated_at}"
+        "🕒 更新：{updated_at}
+
+"
+        "© 2026 秦屿泊 @qinyubo · MIT License"
     ),
     "admin.panel.orders": "订单中心",
     "admin.panel.user_search": "用户搜索",
