@@ -55,5 +55,5 @@ def test_protection_wiring_is_present():
     assert "copyright=COPYRIGHT_NOTICE" in (
         root / "handlers" / "admin_handlers.py"
     ).read_text(encoding="utf-8")
-    assert "版权保护说明" in (root / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "版权保护说明" in (root / "AGENTS.md").read_text(encoding="utf-8")
     assert "秦屿泊" in (root / "README.md").read_text(encoding="utf-8")
