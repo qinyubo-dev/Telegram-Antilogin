@@ -1,6 +1,7 @@
 # Copyright (c) 2026 秦屿泊 (@qinyubo)
 # SPDX-License-Identifier: MIT
 
+import asyncio
 import copy
 import unittest
 from datetime import datetime, timedelta
@@ -94,6 +95,71 @@ class SubscriptionCoordinationTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(subscription['selection_required'])
         suspend.assert_awaited_once_with(23, keep_selected=True)
         resume.assert_awaited_once_with(23)
+
+    async def _reconcile_over_quota(self, user_id, since):
+        self._set_subscription(user_id, [], selection_required=True)
+        if since is not None:
+            data_manager.user_data[user_id]['subscription'][
+                'selection_required_since'] = since.isoformat()
+        suspend = AsyncMock(return_value=0)
+        resume = AsyncMock(return_value=2)
+        notify = AsyncMock()
+        with patch.object(
+            AccountManager, 'hosted_account_phones', return_value={'111', '222', '333'}
+        ), patch.object(
+            AccountManager, 'suspend_user_accounts', suspend
+        ), patch.object(
+            AccountManager, 'resume_selected_accounts', resume
+        ), patch.object(
+            bot_main, '_notify_auto_selection', notify
+        ), patch.object(DataManager, 'save_user_data', return_value=True):
+            await bot_main._reconcile_user_subscription(user_id)
+            await asyncio.gather(*list(bot_main._background_notifications))
+        return suspend, resume, notify
+
+    async def test_selection_ignored_for_24_hours_enables_random_accounts(self):
+        suspend, resume, notify = await self._reconcile_over_quota(
+            24, datetime.now() - timedelta(hours=25)
+        )
+        subscription = data_manager.user_data[24]['subscription']
+        self.assertEqual(len(subscription['selected_accounts']), 2)
+        self.assertTrue(set(subscription['selected_accounts']) <= {'111', '222', '333'})
+        self.assertFalse(subscription['selection_required'])
+        self.assertNotIn('selection_required_since', subscription)
+        suspend.assert_awaited_once_with(24, keep_selected=True)
+        resume.assert_awaited_once_with(24)
+        notify.assert_awaited_once()
+
+    async def test_selection_pending_under_24_hours_stays_suspended(self):
+        suspend, resume, notify = await self._reconcile_over_quota(
+            25, datetime.now() - timedelta(hours=1)
+        )
+        self.assertTrue(data_manager.user_data[25]['subscription']['selection_required'])
+        suspend.assert_awaited_once_with(25)
+        resume.assert_not_awaited()
+        notify.assert_not_awaited()
+
+    async def test_pending_selection_records_start_time(self):
+        await self._reconcile_over_quota(26, None)
+        subscription = data_manager.user_data[26]['subscription']
+        self.assertIn('selection_required_since', subscription)
+        self.assertTrue(subscription['selection_required'])
+
+    async def test_one_user_failure_does_not_block_others(self):
+        calls = []
+
+        async def reconcile(user_id):
+            calls.append(user_id)
+            if user_id == 1:
+                raise RuntimeError('boom')
+            raise asyncio.CancelledError
+
+        with patch.object(DataManager, 'activate_due_subscriptions'), patch.object(
+            DataManager, 'get_subscription_user_ids', return_value=[1, 2]
+        ), patch.object(bot_main, '_reconcile_user_subscription', reconcile):
+            with self.assertRaises(asyncio.CancelledError):
+                await bot_main._monitor_subscriptions()
+        self.assertEqual(calls, [1, 2])
 
 
 if __name__ == '__main__':

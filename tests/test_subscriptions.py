@@ -105,20 +105,17 @@ class SubscriptionTests(unittest.TestCase):
             self.assertEqual(DataManager.activate_due_subscriptions(), [])
         self.assertEqual(data_manager.user_data[7], before)
 
-    def test_renew_upgrade_and_scheduled_downgrade(self):
+    def test_different_plan_is_scheduled_after_current_expiry(self):
         self.assertTrue(DataManager.apply_subscription(8, 'go', 2))
-        first_expiry = datetime.fromisoformat(data_manager.user_data[8]['subscription']['expires_at'])
+        current = data_manager.user_data[8]['subscription']
+        expiry = current['expires_at']
+        self.assertEqual(DataManager.classify_subscription_change(8, 'plus', 15), 'switch')
         self.assertTrue(DataManager.apply_subscription(8, 'plus', 15))
-        upgraded = data_manager.user_data[8]['subscription']
-        self.assertEqual(upgraded['plan_id'], 'plus')
-        self.assertAlmostEqual(
-            (datetime.fromisoformat(upgraded['expires_at']) - first_expiry).total_seconds(),
-            timedelta(days=30).total_seconds(), delta=1,
-        )
-        self.assertTrue(DataManager.apply_subscription(8, 'go', 2))
-        scheduled = data_manager.user_data[8]['subscription']['scheduled']
-        self.assertEqual(scheduled['plan_id'], 'go')
-        self.assertEqual(scheduled['starts_at'], upgraded['expires_at'])
+        subscription = data_manager.user_data[8]['subscription']
+        self.assertEqual(subscription['plan_id'], 'go')
+        self.assertEqual(subscription['expires_at'], expiry)
+        self.assertEqual(subscription['scheduled']['plan_id'], 'plus')
+        self.assertEqual(subscription['scheduled']['starts_at'], expiry)
 
     def test_conflicting_scheduled_change_is_rejected(self):
         DataManager.apply_subscription(9, 'pro', None)

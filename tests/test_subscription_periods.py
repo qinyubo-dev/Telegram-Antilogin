@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
 
-from handlers.vip_handlers import _upgrade_order_text
+from handlers.vip_handlers import _order_billing_text
 from payments.payment_system import PaymentSystem
 from storage import data_manager
 from storage.data_manager import DataManager
@@ -70,7 +70,7 @@ class SubscriptionPeriodPricingTests(unittest.TestCase):
 
     def test_go_long_period_order_text_does_not_claim_a_discount(self):
         quote = DataManager.quote_subscription('go', period_days=365)
-        text = _upgrade_order_text({
+        text = _order_billing_text({
             'billing_mode': 'full_period', 'period_days': 365,
             'list_price': quote['list_price'], 'amount': quote['price'],
             'actual_discount_percent': quote['actual_discount_percent'],
@@ -109,7 +109,7 @@ class SubscriptionPeriodPricingTests(unittest.TestCase):
         self.assertEqual(segment['order_id'], 'long-period')
 
     def test_long_period_order_text_shows_real_saving(self):
-        text = _upgrade_order_text({
+        text = _order_billing_text({
             'billing_mode': 'full_period', 'period_days': 365,
             'list_price': '12', 'amount': '9',
             'actual_discount_percent': '25',
@@ -151,34 +151,6 @@ class SubscriptionPeriodPaymentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(metadata['pricing_days'], 360)
         self.assertEqual(metadata['configured_discount_percent'], '25')
         self.assertEqual(metadata['effective_monthly_price'], '0.73972603')
-
-    async def test_upgrade_ignores_requested_long_period(self):
-        upgrade = {
-            'billing_mode': 'prorated_upgrade', 'amount': '0.25',
-            'target_expires_at': (datetime.now() + timedelta(days=15)).isoformat(),
-        }
-        self.payment.create_payment_link = AsyncMock(return_value={
-            'success': True, 'order_id': 'upgrade', 'pay_url': 'https://pay',
-        })
-        with patch.object(DataManager, 'is_admin', return_value=False), patch.object(
-            DataManager, 'classify_subscription_change', return_value='upgrade'
-        ), patch.object(DataManager, 'quote_subscription_upgrade', return_value=upgrade):
-            result = await self.payment.create_subscription_payment(
-                42, 'plus', 10, period_days=365
-            )
-        self.assertTrue(result['success'])
-        kwargs = self.payment.create_payment_link.await_args.kwargs
-        metadata = kwargs['_order_metadata']
-        self.assertEqual(metadata['period_days'], 30)
-        self.assertEqual(kwargs['amount'], '0.25')
-        self.assertEqual(kwargs['name'], '🥈 PLUS · 进阶方案｜尊享权益升级')
-        self.assertEqual(
-            PaymentSystem._subscription_payment_name({
-                'plan_id': 'plus', 'plan_name': 'Plus', 'quota': 15,
-                'addon': 5, 'period_days': 30,
-            }, upgrade=True),
-            '🥈 PLUS · 进阶方案 · 专属席位｜尊享权益升级至15席',
-        )
 
     async def test_payment_names_follow_vip_plan_hierarchy(self):
         self.payment.create_payment_link = AsyncMock(return_value={

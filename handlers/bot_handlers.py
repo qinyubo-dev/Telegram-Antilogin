@@ -543,6 +543,9 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
             await event.answer(t(language, "subscription.changed"), alert=True)
             return
         selected = list(subscription.get('selected_accounts') or [])
+        if not selected and AccountManager.hosted_account_phones(user_id):
+            await event.answer(t(language, "subscription.empty"), alert=True)
+            return
         if not DataManager.set_selected_accounts(user_id, selected, finalize=True):
             await event.answer(t(language, "subscription.save_failed"), alert=True)
             return

@@ -30,46 +30,23 @@ def _percent_text(value) -> str:
         return str(value)
 
 
-def _upgrade_order_text(order: dict, language="zh") -> str:
-    snapshot = order.get('upgrade_snapshot') or {}
-    if order.get('billing_mode') != 'prorated_upgrade':
-        period_days = int(order.get('period_days', 30))
-        if language == "zh":
-            discount_line = ""
-            if period_days > 30 and Decimal(str(order.get('actual_discount_percent', '0'))) > 0:
-                discount_line = (
-                    f"│ 标准原价  ·  {order.get('list_price', order['amount'])} USDT\n"
-                    f"│ 周期礼遇  ·  实际节省 {_percent_text(order.get('actual_discount_percent', '0'))}%\n"
-                )
-            return (
-                "╭─ ✦ 尊享账单\n"
-                f"│ 服务周期  ·  {period_days} 天\n"
-                f"{discount_line}"
-                f"│ 应付金额  ·  {order['amount']} USDT\n"
-                "╰─ 权益将在支付确认后自动生效"
-            )
-        return t(language, "plans.billing_standard", days=period_days, amount=order['amount'])
-    expiry_text = snapshot.get('target_expires_at', '未知')
-    try:
-        expiry_text = datetime.fromisoformat(expiry_text).strftime('%Y-%m-%d %H:%M')
-    except (TypeError, ValueError):
-        pass
+def _order_billing_text(order: dict, language="zh") -> str:
+    period_days = int(order.get('period_days', 30))
     if language == "zh":
-        fallback = "\n│ 计价说明  ·  历史权益按当前目录价估算" if snapshot.get('uses_catalog_fallback') else ""
+        discount_line = ""
+        if period_days > 30 and Decimal(str(order.get('actual_discount_percent', '0'))) > 0:
+            discount_line = (
+                f"│ 标准原价  ·  {order.get('list_price', order['amount'])} USDT\n"
+                f"│ 周期礼遇  ·  实际节省 {_percent_text(order.get('actual_discount_percent', '0'))}%\n"
+            )
         return (
-            "╭─ ✦ 权益折抵\n"
-            f"│ 剩余周期  ·  {snapshot.get('billable_days', 0)} 个计费日\n"
-            f"│ 当前权益  ·  − {snapshot.get('source_value', '0')} USDT\n"
-            f"│ 目标权益  ·  {snapshot.get('target_value', '0')} USDT"
-            f"{fallback}\n"
-            "├─ ✦ 本次结算\n"
-            f"│ 应付差价  ·  {order['amount']} USDT\n"
-            f"│ 权益到期  ·  {expiry_text}\n"
-            "╰─ 到期时间保持不变"
+            "╭─ ✦ 尊享账单\n"
+            f"│ 服务周期  ·  {period_days} 天\n"
+            f"{discount_line}"
+            f"│ 应付金额  ·  {order['amount']} USDT\n"
+            "╰─ 权益将在支付确认后自动生效"
         )
-    return t(language, "plans.billing_upgrade", days=snapshot.get('billable_days', 0),
-             source=snapshot.get('source_value', '0'), target=snapshot.get('target_value', '0'),
-             amount=order['amount'], expiry=expiry_text)
+    return t(language, "plans.billing_standard", days=period_days, amount=order['amount'])
 
 
 def _catalog_text(language="zh") -> str:
@@ -118,7 +95,7 @@ def _current_subscription_text(subscription: dict, language="zh") -> str:
 def _success_message(payment_system: PaymentSystem, user_id: int, order_id: str) -> str:
     order = payment_system.pending_orders.get(order_id, {})
     language = DataManager.get_user_language(user_id)
-    title = t(language, "plans.upgraded") if order.get('billing_mode') == 'prorated_upgrade' else t(language, "plans.activated")
+    title = t(language, "plans.activated")
     subscription = DataManager.get_subscription(user_id, include_inactive=True) or {}
     details = t(language, "plans.details",
                 plan=str(subscription.get('plan_id', 'VIP')).upper(),
@@ -164,22 +141,16 @@ async def setup_vip_handlers(bot: TelegramClient, payment_system: PaymentSystem)
             return
         order_id, pay_url = result['order_id'], result['pay_url']
         order = payment_system.pending_orders[order_id]
-        change_keys = {'new':'plans.change_new','renewal':'plans.change_renewal','upgrade':'plans.change_upgrade',
-                       'downgrade':'plans.change_downgrade','scheduled_renewal':'plans.change_scheduled'}
+        change_keys = {'new':'plans.change_new','renewal':'plans.change_renewal','switch':'plans.change_downgrade','scheduled_renewal':'plans.change_scheduled'}
         plan_keys = {'go':'plans.go','plus':'plans.plus','pro':'plans.pro'}
         message = t(language, "plans.order",
                     change=t(language, change_keys.get(order.get('change_type'), 'plans.change_default')),
                     plan=t(language, plan_keys.get(plan_id, 'plans.change_default')),
                     quota=_quota_text(order.get('quota'), language),
-                    billing=_upgrade_order_text(order, language), order_id=order_id)
+                    billing=_order_billing_text(order, language), order_id=order_id)
         buttons = [
                 [Button.url(t(language, "plans.pay"), pay_url)],
-                [Button.inline(
-                    t(language, "plans.confirm_upgrade")
-                    if order.get('billing_mode') == 'prorated_upgrade'
-                    else t(language, "plans.confirm"),
-                    f"manual_confirm_{order_id}",
-                )],
+                [Button.inline(t(language, "plans.confirm"), f"manual_confirm_{order_id}")],
                 [back_button(f"cancel_order_{order_id}".encode(), language=language)],
         ]
         try:
@@ -195,13 +166,6 @@ async def setup_vip_handlers(bot: TelegramClient, payment_system: PaymentSystem)
 
     async def show_period_selection(event, plan_id: str, quota=None):
         language = DataManager.get_user_language(event.sender_id)
-        base_quote = DataManager.quote_subscription(plan_id, quota, 30)
-        change = DataManager.classify_subscription_change(
-            event.sender_id, base_quote['plan_id'], base_quote['quota']
-        )
-        if change == 'upgrade':
-            await create_order(event, plan_id, quota, 30)
-            return
         set_state(
             event.sender_id,
             subscription_period_selection=True,

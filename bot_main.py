@@ -3,12 +3,14 @@
 
 import asyncio
 import os
+import random
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import threading
 import time
+from datetime import datetime
 import telethon
-from telethon import TelegramClient
+from telethon import Button, TelegramClient
 from telethon.errors import AccessTokenInvalidError, ApiIdInvalidError
 from storage.data_manager import DataManager
 from storage.admin_audit import AdminAuditLog
@@ -391,6 +393,46 @@ login_unlock_reminder_system = None
 subscription_task = None
 
 
+SELECTION_AUTO_ENABLE_AFTER = 24 * 3600
+_background_notifications: set = set()
+
+
+async def _notify_auto_selection(user_id: int, quota: int, selected: list) -> None:
+    """Best-effort notice; failures must never block subscription reconciliation."""
+    try:
+        language = DataManager.get_user_language(user_id)
+        accounts = "\n".join(
+            AccountManager.format_phone_display(f"+{digits}") for digits in selected
+        )
+        await asyncio.wait_for(bot.send_message(
+            user_id,
+            t(language, "subscription.auto_selected", quota=quota, accounts=accounts),
+            buttons=[[Button.inline(t(language, "vip.select_accounts"), b"subscription_accounts")]],
+        ), timeout=15)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        logger.warning("自动启用账户通知发送失败: 用户 %s", user_id, exc_info=True)
+
+
+def _auto_select_overdue_accounts(user_id: int, quota: int, phones: list) -> bool:
+    """Randomly enable accounts when the user ignored the selection for 24 hours."""
+    since = DataManager.ensure_selection_deadline(user_id)
+    if since is None or (datetime.now() - since).total_seconds() < SELECTION_AUTO_ENABLE_AFTER:
+        return False
+    current = DataManager.get_subscription(user_id) or {}
+    chosen = [p for p in current.get('selected_accounts') or [] if p in phones][:quota]
+    pool = [p for p in phones if p not in chosen]
+    chosen += random.sample(pool, min(quota - len(chosen), len(pool)))
+    if not chosen or not DataManager.set_selected_accounts(user_id, chosen, finalize=True):
+        return False
+    logger.info("用户 %s 超过 24 小时未选择账户，已随机启用 %d 个", user_id, len(chosen))
+    task = asyncio.create_task(_notify_auto_selection(user_id, quota, chosen))
+    _background_notifications.add(task)
+    task.add_done_callback(_background_notifications.discard)
+    return True
+
+
 async def _reconcile_user_subscription(user_id: int) -> None:
     subscription = DataManager.get_subscription(user_id, include_inactive=True) or {}
     if not subscription.get('active'):
@@ -408,10 +450,14 @@ async def _reconcile_user_subscription(user_id: int) -> None:
             # Repair finite subscriptions created with an empty enabled list.
             DataManager.set_selected_accounts(user_id, phones, finalize=True)
             subscription['selection_required'] = False
+        elif not selected and len(phones) > int(quota) and not subscription.get('selection_required'):
+            # Nothing is enabled although accounts exceed the quota: ask the user to choose.
+            DataManager.set_selected_accounts(user_id, [], finalize=False)
+            subscription['selection_required'] = True
         if subscription.get('selection_required'):
             if len(phones) <= int(quota):
                 DataManager.set_selected_accounts(user_id, phones, finalize=True)
-            else:
+            elif not _auto_select_overdue_accounts(user_id, int(quota), phones):
                 await AccountManager.suspend_user_accounts(user_id)
                 return
         await AccountManager.suspend_user_accounts(user_id, keep_selected=True)
@@ -423,7 +469,12 @@ async def _monitor_subscriptions():
         try:
             DataManager.activate_due_subscriptions()
             for user_id in DataManager.get_subscription_user_ids():
-                await _reconcile_user_subscription(user_id)
+                try:
+                    await _reconcile_user_subscription(user_id)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception('订阅协调失败，已跳过用户 %s', user_id)
         except asyncio.CancelledError:
             raise
         except Exception:

@@ -579,15 +579,6 @@ class DataManager:
         }
 
     @staticmethod
-    def _raw_subscription_state(subscription: Dict) -> Dict:
-        return {
-            'plan_id': subscription.get('plan_id'),
-            'quota': subscription.get('quota'),
-            'expires_at': subscription.get('expires_at'),
-            'billing_segments': copy.deepcopy(subscription.get('billing_segments') or []),
-        }
-
-    @staticmethod
     def _remaining_billing_segments(
         subscription: Dict, now: Optional[datetime] = None
     ) -> List[Dict]:
@@ -628,128 +619,6 @@ class DataManager:
             'monthly_price': quote['price'],
             'price_source': 'catalog_fallback',
         }]
-
-    @staticmethod
-    def quote_subscription_upgrade(
-        user_id: int, plan_id: str, quota: Optional[int] = None,
-        now: Optional[datetime] = None,
-    ) -> Dict:
-        now = now or datetime.now()
-        current = DataManager.get_subscription(user_id)
-        if not current or not current.get('active'):
-            raise ValueError('当前没有可抵扣的有效订阅')
-        if current.get('scheduled'):
-            raise ValueError('已有待生效方案，无法创建差价升级订单')
-        target = DataManager.quote_subscription(plan_id, quota)
-        if DataManager.classify_subscription_change(
-            user_id, target['plan_id'], target['quota']
-        ) != 'upgrade':
-            raise ValueError('目标方案不是当前订阅的升级方案')
-
-        segments = DataManager._remaining_billing_segments(current, now)
-        if not segments:
-            raise ValueError('订阅剩余期限无效')
-        target_monthly = Decimal(str(target['price']))
-        source_value = Decimal('0')
-        target_value = Decimal('0')
-        billable_days = 0
-        breakdown = []
-        target_segments = []
-        for segment in segments:
-            starts = datetime.fromisoformat(segment['starts_at'])
-            expires = datetime.fromisoformat(segment['expires_at'])
-            days = max(1, math.ceil((expires - starts).total_seconds() / 86400))
-            source_monthly = Decimal(str(segment['monthly_price']))
-            if target_monthly <= source_monthly:
-                raise ValueError('目标方案价格必须高于当前订阅成交价')
-            source_amount = source_monthly * Decimal(days) / Decimal(30)
-            target_amount = target_monthly * Decimal(days) / Decimal(30)
-            source_value += source_amount
-            target_value += target_amount
-            billable_days += days
-            breakdown.append({
-                'starts_at': segment['starts_at'],
-                'expires_at': segment['expires_at'],
-                'billable_days': days,
-                'source_monthly_price': DataManager._decimal_text(source_monthly),
-                'source_value': DataManager._decimal_text(source_amount),
-                'target_value': DataManager._decimal_text(target_amount),
-                'price_source': segment.get('price_source', 'order'),
-            })
-            target_segments.append({
-                'starts_at': segment['starts_at'],
-                'expires_at': segment['expires_at'],
-                'plan_id': target['plan_id'],
-                'quota': target['quota'],
-                'monthly_price': target['price'],
-                'price_source': 'prorated_upgrade',
-            })
-        amount = target_value - source_value
-        amount_text = DataManager._decimal_text(amount)
-        if Decimal(amount_text) <= 0:
-            raise ValueError('升级差价必须大于0')
-        return {
-            'billing_mode': 'prorated_upgrade',
-            'source_plan_id': current.get('plan_id'),
-            'source_quota': current.get('quota'),
-            'source_state': DataManager._raw_subscription_state(current),
-            'source_value': DataManager._decimal_text(source_value),
-            'target_value': DataManager._decimal_text(target_value),
-            'target_plan_id': target['plan_id'],
-            'target_quota': target['quota'],
-            'target_monthly_price': target['price'],
-            'target_expires_at': current['expires_at'],
-            'target_segments': target_segments,
-            'billable_days': billable_days,
-            'breakdown': breakdown,
-            'amount': amount_text,
-            'coin': 'USDT',
-            'quoted_at': now.isoformat(),
-            'uses_catalog_fallback': any(
-                item.get('price_source') == 'catalog_fallback' for item in breakdown
-            ),
-        }
-
-    @staticmethod
-    def apply_prorated_upgrade(user_id: int, upgrade_snapshot: Dict) -> bool:
-        current = DataManager.get_subscription(user_id)
-        if not current or not current.get('active'):
-            return False
-        if DataManager._raw_subscription_state(current) != upgrade_snapshot.get('source_state'):
-            return False
-        try:
-            expiry = datetime.fromisoformat(upgrade_snapshot['target_expires_at'])
-            plan_id = str(upgrade_snapshot['target_plan_id'])
-            quota = upgrade_snapshot.get('target_quota')
-            target_segments = copy.deepcopy(upgrade_snapshot['target_segments'])
-        except (KeyError, TypeError, ValueError):
-            return False
-        if expiry <= datetime.now() or plan_id not in {'go', 'plus', 'pro'}:
-            return False
-        if plan_id == 'pro':
-            quota = None
-        else:
-            try:
-                quota = int(quota)
-            except (TypeError, ValueError):
-                return False
-            if quota <= 0:
-                return False
-        info = user_data.get(int(user_id), {})
-        subscription = copy.deepcopy(info.get('subscription') or {})
-        subscription.update({
-            'plan_id': plan_id,
-            'quota': quota,
-            'starts_at': datetime.now().isoformat(),
-            'expires_at': expiry.isoformat(),
-            'billing_segments': target_segments,
-            'selection_required': False,
-        })
-        subscription.pop('scheduled', None)
-        info['subscription'] = subscription
-        info['last_updated'] = datetime.now().isoformat()
-        DataManager._set_subscription_index(user_id, expiry, True)
-        return True
 
     @staticmethod
     def _activate_scheduled_subscription(user_id: int, now: Optional[datetime] = None) -> bool:
@@ -811,11 +680,9 @@ class DataManager:
             if scheduled.get('plan_id') == plan_id and scheduled.get('quota') == quota:
                 return 'scheduled_renewal'
             return 'conflict'
-        current_score = float('inf') if current.get('quota') is None else int(current['quota'])
-        new_score = float('inf') if quota is None else int(quota)
         if current.get('plan_id') == plan_id and current.get('quota') == quota:
             return 'renewal'
-        return 'upgrade' if new_score > current_score else 'downgrade'
+        return 'switch'
 
     @staticmethod
     def _is_quota_downgrade(old_quota: Optional[int], new_quota: Optional[int]) -> bool:
@@ -873,7 +740,7 @@ class DataManager:
         change = DataManager.classify_subscription_change(user_id, plan_id, quota)
         if change == 'conflict':
             return False
-        if current and current.get('active') and change in {'downgrade', 'scheduled_renewal'}:
+        if current and current.get('active') and change in {'switch', 'scheduled_renewal'}:
             scheduled = current.get('scheduled')
             starts = datetime.fromisoformat(current['expires_at'])
             if scheduled:
@@ -909,14 +776,6 @@ class DataManager:
                 and not current.get('active')
                 and DataManager._is_quota_downgrade(current.get('quota'), quota)
             )
-            if current and current.get('active') and change == 'upgrade':
-                remaining_segments = [{
-                    **segment,
-                    'plan_id': plan_id,
-                    'quota': quota,
-                    'monthly_price': billing_price,
-                    'price_source': 'admin_grant',
-                } for segment in remaining_segments]
             segment = {
                 'starts_at': base.isoformat(),
                 'expires_at': expiry.isoformat(),
@@ -1021,7 +880,25 @@ class DataManager:
             return False
         subscription['selected_accounts'] = normalized
         subscription['selection_required'] = not finalize
+        if finalize:
+            subscription.pop('selection_required_since', None)
         return DataManager.save_user_data()
+
+    @staticmethod
+    def ensure_selection_deadline(
+        user_id: int, now: Optional[datetime] = None
+    ) -> Optional[datetime]:
+        """Return when the pending account selection began, recording it if missing."""
+        subscription = (user_data.get(int(user_id)) or {}).get('subscription')
+        if not subscription or not subscription.get('selection_required'):
+            return None
+        now = now or datetime.now()
+        try:
+            return datetime.fromisoformat(subscription['selection_required_since'])
+        except (KeyError, TypeError, ValueError):
+            subscription['selection_required_since'] = now.isoformat()
+            DataManager.save_user_data()
+            return now
 
     @staticmethod
     def get_raw_subscription_snapshot(user_id: int) -> Optional[Dict]:
@@ -1605,22 +1482,7 @@ class DataManager:
             if order.get('fulfillment_state') == 'applying':
                 DataManager.recover_payment_fulfillments()
                 return bool(order.get('processed'))
-            if order.get('billing_mode') == 'prorated_upgrade':
-                upgrade_snapshot = copy.deepcopy(order.get('upgrade_snapshot') or {})
-                for segment in upgrade_snapshot.get('target_segments') or []:
-                    segment['order_id'] = order_id
-                if not DataManager.apply_prorated_upgrade(user_id, upgrade_snapshot):
-                    order.update({
-                        'needs_manual_review': True,
-                        'manual_review_reason': 'subscription_state_changed',
-                        'auto_check_stopped': True,
-                    })
-                    DataManager.save_payment_orders(orders)
-                    logger.error(
-                        '差价升级订单已付款但源订阅状态发生变化，转人工处理: %s', order_id
-                    )
-                    return False
-            elif not DataManager.apply_subscription(
+            if not DataManager.apply_subscription(
                 user_id, plan_id, quota, days, validate_catalog=False,
                 billing_price=(
                     order.get('effective_monthly_price')
@@ -1714,8 +1576,7 @@ for _method_name in (
     "set_login_unlock_reminder_schedule", "set_login_unlock_reminders",
     "set_login_code_request_timestamps",
     "set_subscription_catalog", "set_subscription_periods", "apply_subscription", "fulfill_subscription_payment",
-    "quote_subscription_upgrade", "apply_prorated_upgrade",
-    "set_selected_accounts",
+    "set_selected_accounts", "ensure_selection_deadline",
     "initialize_user_language", "set_user_language", "set_user_timezone",
     "activate_due_subscriptions", "mark_expiry_reminder_sent",
     "recover_payment_fulfillments",

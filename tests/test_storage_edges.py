@@ -716,7 +716,7 @@ def test_fulfillment_rejects_invalid_order_shapes(isolated_storage, order):
     assert not DataManager.fulfill_subscription_payment("o", orders)
 
 
-def test_fulfillment_applying_and_upgrade_manual_review_edges(isolated_storage):
+def test_fulfillment_applying_edge(isolated_storage):
     applying = {
         "type": "subscription_purchase",
         "user_id": 1,
@@ -729,16 +729,6 @@ def test_fulfillment_applying_and_upgrade_manual_review_edges(isolated_storage):
     with patch.object(DataManager, "recover_payment_fulfillments", return_value=True) as recover:
         assert not DataManager.fulfill_subscription_payment("o", {"o": applying})
     recover.assert_called_once_with()
-
-    upgrade = copy.deepcopy(applying)
-    upgrade.pop("fulfillment_state")
-    upgrade["billing_mode"] = "prorated_upgrade"
-    upgrade["upgrade_snapshot"] = {"target_segments": [{}]}
-    with patch.object(DataManager, "apply_prorated_upgrade", return_value=False), patch.object(
-        DataManager, "save_payment_orders", return_value=True
-    ):
-        assert not DataManager.fulfill_subscription_payment("o", {"o": upgrade})
-    assert upgrade["needs_manual_review"]
 
 
 def test_recover_payment_fulfillments_corrupt_older_and_save_failures(isolated_storage):

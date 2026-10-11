@@ -72,32 +72,6 @@ def test_plan_selection_renders_periods(handler_bot, event_factory, plan_id):
     assert edit.await_count == 1
 
 
-def test_upgrade_plan_creates_and_binds_order(handler_bot, event_factory):
-    payment = payment_stub()
-    payment.create_subscription_payment.return_value = {
-        "success": True,
-        "order_id": "o1",
-        "pay_url": "https://pay.invalid/o1",
-    }
-    payment.pending_orders["o1"] = {
-        "amount": "2.5",
-        "quota": 10,
-        "billing_mode": "prorated_upgrade",
-        "change_type": "upgrade",
-        "period_days": 30,
-    }
-    bot, _ = register(handler_bot, payment)
-    event = event_factory(data=b"buy_sub_pro", chat_id=88, message_id=99)
-    quote = {"plan_id": "pro", "quota": None, "price": "2.5"}
-    rendered = SimpleNamespace(id=101)
-    with patch("handlers.vip_handlers.DataManager.quote_subscription", return_value=quote), patch(
-        "handlers.vip_handlers.DataManager.classify_subscription_change", return_value="upgrade"
-    ), patch("handlers.vip_handlers.safe_edit_message", new=AsyncMock(return_value=rendered)):
-        run(bot.find("select_plan")(event))
-    payment.create_subscription_payment.assert_awaited_once_with(1001, "pro", None, period_days=30)
-    payment.bind_order_message.assert_called_once_with("o1", 88, 101)
-
-
 def test_period_selection_expired_and_valid(handler_bot, event_factory):
     payment = payment_stub()
     payment.create_subscription_payment.return_value = {
@@ -206,24 +180,10 @@ def test_billing_text_variants():
         "list_price": "12",
         "amount": "10.8",
     }
-    assert "实际节省 10%" in vip_handlers._upgrade_order_text(standard, "zh")
-    assert "10.8" in vip_handlers._upgrade_order_text(standard, "en")
+    assert "实际节省 10%" in vip_handlers._order_billing_text(standard, "zh")
+    assert "10.8" in vip_handlers._order_billing_text(standard, "en")
     standard["period_days"] = 30
-    assert "标准原价" not in vip_handlers._upgrade_order_text(standard, "zh")
-
-    upgrade = {
-        "billing_mode": "prorated_upgrade",
-        "amount": "2",
-        "upgrade_snapshot": {
-            "target_expires_at": "invalid",
-            "billable_days": 3,
-            "source_value": "1",
-            "target_value": "3",
-            "uses_catalog_fallback": True,
-        },
-    }
-    assert "历史权益" in vip_handlers._upgrade_order_text(upgrade, "zh")
-    assert "invalid" in vip_handlers._upgrade_order_text(upgrade, "en")
+    assert "标准原价" not in vip_handlers._order_billing_text(standard, "zh")
 
 
 def test_payment_check_wrong_owner_and_manual_confirm(handler_bot, event_factory):

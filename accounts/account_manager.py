@@ -5477,8 +5477,9 @@ class AccountManager:
             await AccountManager.cleanup_incomplete_account(user_id, phone, client)
             return t(language, "auth.code_attempts_exhausted")
         
-        code = code.strip()
-        if not code.isdigit() or len(code) < 4:
+        # 允许用户在验证码数字间输入空格、横线等分隔符
+        code = re.sub(r'\D', '', code or '')
+        if len(code) < 4:
             return t(
                 language,
                 "auth.code_format_invalid",

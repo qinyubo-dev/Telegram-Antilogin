@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Mapping
 
+from telethon import Button
 from telethon.errors import RPCError
 
 from accounts import account_runtime
@@ -1020,42 +1021,36 @@ class PaymentSystem:
             quota = order.get('quota')
             quota_text = t(language, "plans.quota_unlimited") if quota is None else str(quota)
             plan = str(order.get('plan_id', '')).upper()
-            if order.get('billing_mode') == 'prorated_upgrade':
-                snapshot = order.get('upgrade_snapshot') or {}
-                detail = t(
+            period_days = int(order.get('period_days', 30))
+            discount = ""
+            if period_days > 30 and Decimal(str(
+                order.get('actual_discount_percent', '0')
+            )) > 0:
+                discount = t(
                     language,
-                    "payment.fulfilled_upgrade",
-                    plan=plan,
-                    quota=quota_text,
-                    amount=order.get('amount'),
-                    expiry=snapshot.get('target_expires_at', ''),
+                    "payment.fulfilled_discount",
+                    percent=_display_percent(order.get('actual_discount_percent', '0')),
                 )
-            else:
-                period_days = int(order.get('period_days', 30))
-                discount = ""
-                if period_days > 30 and Decimal(str(
-                    order.get('actual_discount_percent', '0')
-                )) > 0:
-                    discount = t(
-                        language,
-                        "payment.fulfilled_discount",
-                        percent=_display_percent(order.get('actual_discount_percent', '0')),
-                    )
-                detail = t(
-                    language,
-                    "payment.fulfilled_standard",
-                    plan=plan,
-                    quota=quota_text,
-                    days=period_days,
-                    discount=discount,
-                )
+            detail = t(
+                language,
+                "payment.fulfilled_standard",
+                plan=plan,
+                quota=quota_text,
+                days=period_days,
+                discount=discount,
+            )
             subscription = DataManager.get_subscription(int(order['user_id'])) or {}
+            buttons = None
             if subscription.get('selection_required'):
                 detail += t(language, "payment.fulfilled_selection")
+                buttons = [[Button.inline(
+                    t(language, "vip.select_accounts"), b"subscription_accounts"
+                )]]
             await self.bot.send_message(
                 user_id,
                 t(language, "payment.confirmed", detail=detail,
                   amount=order['amount'], coin=order['coin'], order_id=order_id),
+                buttons=buttons,
             )
             account_runtime.mark_notify_bot_healthy()
             order["success_notified"] = True
@@ -1104,7 +1099,7 @@ class PaymentSystem:
 
     @staticmethod
     def _subscription_payment_name(
-        quote: Mapping[str, Any], upgrade: bool = False, language: str = "zh"
+        quote: Mapping[str, Any], language: str = "zh"
     ) -> str:
         """生成展示在支付渠道中的尊享订阅名称。"""
         title = PaymentSystem._subscription_plan_title(quote, language)
@@ -1114,17 +1109,6 @@ class PaymentSystem:
             t(language, "payment.provider.seats", quota=quota)
             if is_custom_plus else ""
         )
-        if upgrade:
-            upgrade_target = (
-                t(language, "payment.provider.target_seats", quota=quota)
-                if is_custom_plus else ""
-            )
-            return t(
-                language,
-                "payment.provider.upgrade",
-                title=title,
-                target=upgrade_target,
-            )
         return t(
             language,
             "payment.provider.subscription",
@@ -1167,10 +1151,7 @@ class PaymentSystem:
                     'error': t(DataManager.get_user_language(user_id), "payment.error.scheduled_conflict"),
                 }
             try:
-                quote = (
-                    base_quote if change == 'upgrade'
-                    else DataManager.quote_subscription(plan_id, quota, period_days)
-                )
+                quote = DataManager.quote_subscription(plan_id, quota, period_days)
             except ValueError as error:
                 return {
                     'success': False,
@@ -1178,38 +1159,19 @@ class PaymentSystem:
                         DataManager.get_user_language(user_id), error
                     ),
                 }
-            upgrade_snapshot = None
             amount = quote['price']
             billing_mode = 'full_period'
-            if change == 'upgrade':
-                try:
-                    upgrade_snapshot = DataManager.quote_subscription_upgrade(
-                        user_id, quote['plan_id'], quote['quota']
-                    )
-                except ValueError as error:
-                    return {
-                        'success': False,
-                        'error': localized_payment_error(
-                            DataManager.get_user_language(user_id), error
-                        ),
-                    }
-                amount = upgrade_snapshot['amount']
-                billing_mode = 'prorated_upgrade'
             if unique_id is None:
                 unique_id = (
                     f"sub-{user_id}-{quote['plan_id']}-{time.time_ns() // 1_000_000}-"
                     f"{secrets.token_hex(4)}"
                 )
             language = DataManager.get_user_language(user_id)
-            name = self._subscription_payment_name(
-                quote,
-                upgrade=upgrade_snapshot is not None,
-                language=language,
-            )
+            name = self._subscription_payment_name(quote, language=language)
             metadata = {
                 'user_id': int(user_id), 'type': 'subscription_purchase',
                 'plan_id': quote['plan_id'], 'quota': quote['quota'],
-                'addon': quote['addon'], 'period_days': 30,
+                'addon': quote['addon'], 'period_days': quote['period_days'],
                 'pricing_days': quote.get('pricing_days', quote.get('period_days', 30)),
                 'change_type': change, 'billing_mode': billing_mode,
                 'catalog_price': quote.get('monthly_catalog_price', quote['price']),
@@ -1219,9 +1181,6 @@ class PaymentSystem:
                 'discount_amount': quote.get('discount_amount', '0'),
                 'effective_monthly_price': quote.get('effective_monthly_price', quote['price']),
             }
-            metadata['period_days'] = 30 if upgrade_snapshot else quote['period_days']
-            if upgrade_snapshot:
-                metadata['upgrade_snapshot'] = upgrade_snapshot
             result = await self.create_payment_link(
                 unique_id=unique_id,
                 amount=amount,
