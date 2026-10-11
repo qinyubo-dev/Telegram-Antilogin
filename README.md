@@ -2,30 +2,27 @@
 
 由作者 [秦屿泊 @qinyubo](https://t.me/qinyubo) 维护运行的 [Anti-Login](https://t.me/QinShield_Bot)。
 
-基于 Telethon 的 Telegram Bot，提供账号托管、反登录监控、新设备处理、
-订阅支付、到期提醒和账号转让。用户界面支持简体中文和英文。
+基于 Telethon 的 Telegram Bot。
 
 Developed and open-sourced by 秦屿泊 (@qinyubo). Free for everyone to use and modify under the MIT License.
 
-## 系统特性
+## 功能
 
-最新版 Anti-Login 系统支持：
-
-- 异常登录验证码不转发并强制失效，降低账户被登录的风险；
-- 多账户托管，以及获取验证码、终止其他会话、二级密码和账户清理等托管工具；
-- 系统内账户转让，也支持通过 Telegram 私聊发起和接收转让；
-- 登录限制检测与解限提醒，按用户时区显示解限时间；
-- 新设备处理、订阅支付、到期提醒，以及简体中文和英文界面。
+- 异常登录验证码强制失效，降低账户被登录的风险；
+- 多账户托管：获取验证码、终止其他会话、二级密码、账户清理；
+- Bot 内账户转让；
+- 登录限制检测与解限提醒；
+- 新设备处理、订阅支付、到期提醒。
 
 ## 环境要求
 
 - Debian、Ubuntu 或其他使用 systemd 的 Linux；
-- Python 3.12（推荐）或 3.14；
+- Python 3.12（推荐）；
 - Telegram Bot Token、管理员 ID；
 - OkayPay 商户 ID 和支付 Token。
 
-生产部署请下载 [GitHub Release](https://github.com/qinyubo211/Anti-Login/releases)
-中的 `Anti-Login-v1.0.0.zip`，不要使用包含测试和 CI 文件的 Source code ZIP。
+生产部署请下载 [GitHub Release](https://github.com/qinyubo-dev/Antilogin/releases)
+中的 `Anti-Login-v1.0.0.zip`。
 
 ## 快速部署
 
@@ -68,7 +65,7 @@ sudoedit /etc/anti-login/config.py
 
 ### 必填配置
 
-`config.py` 只保存部署身份和凭据；程序默认值、类型转换、校验及运行路径统一由 `settings.py` 管理。日常部署只需修改下表内容，不要直接修改 `settings.py`。
+`config.py` 只保存部署凭据；默认值、校验和运行路径由 `settings.py` 管理，日常部署不要修改 `settings.py`。
 
 | 配置项 | 内容 |
 | --- | --- |
@@ -78,7 +75,7 @@ sudoedit /etc/anti-login/config.py
 | `MERCHANT_ID`、`PAYMENT_TOKEN` | OkayPay 商户凭据 |
 | `PAYMENT_RETURN_URL` | 你的 Bot 地址，例如 `https://t.me/your_bot` |
 
-推荐保留模板中的默认 `API_ID` 和 `API_HASH`。这是 Telegram 官方电脑客户端使用的配置，通常具有更好的兼容性与稳定性；只有明确需要自有应用凭据时才替换。其他配置保持模板默认值即可。
+推荐保留默认 `API_ID` / `API_HASH`（Telegram 官方电脑客户端配置，兼容性更好），其他配置保持模板默认值即可。
 
 ## systemd 启动
 
@@ -137,8 +134,7 @@ sudo tar -czf "/root/anti-login-$(date +%Y%m%d-%H%M%S).tar.gz" \
 sudo chmod 0600 /root/anti-login-*.tar.gz
 ```
 
-升级时下载并校验新 Release，解压到新的 `/opt/anti-login/releases/<version>`，
-创建虚拟环境和 `config.py` 软链接，然后执行：
+升级时按“快速部署”的步骤把新 Release 解压到 `/opt/anti-login/releases/<version>`（含虚拟环境和 `config.py` 软链接），然后切换：
 
 ```bash
 NEW_DIR=/opt/anti-login/releases/v1.1.0
