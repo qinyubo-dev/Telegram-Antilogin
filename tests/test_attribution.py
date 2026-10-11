@@ -35,3 +35,13 @@ def test_missing_license_blocks_startup(monkeypatch):
     monkeypatch.setattr(project_info.os.path, "dirname", lambda _path: "/nonexistent")
     with pytest.raises(RuntimeError):
         project_info.verify_attribution()
+
+
+def test_main_refuses_to_start_when_attribution_is_modified(monkeypatch):
+    import asyncio
+
+    import bot_main
+
+    monkeypatch.setattr(project_info, "COPYRIGHT_NOTICE", "© someone else")
+    with pytest.raises(RuntimeError, match="版权声明"):
+        asyncio.run(bot_main.main())
