@@ -308,7 +308,6 @@ class AccountManager:
             selected = all_phones
         resumed = 0
         for digits in selected:
-            phone = f"+{digits}"
             if AccountManager._find_account_key_by_digits(user_accounts.get(user_id, {}), digits):
                 continue
             path = os.path.join(SESSIONS_DIR, f"{user_id}_{digits}.session")
@@ -4113,9 +4112,6 @@ class AccountManager:
         normalized_phone = AccountManager.normalize_phone(phone)
         display_phone = display_phone or AccountManager.format_phone_display(normalized_phone)
         pending_session_path = pending_session_path or AccountManager._client_session_path(pending_client)
-        session_name = f"{user_id}_{normalized_phone.replace('+', '')}.session"
-        session_path = os.path.join(SESSIONS_DIR, session_name)
-        task_key = f"{user_id}_{normalized_phone}"
 
         async with AccountManager._get_quota_lock(user_id):
             if not AccountManager.can_add_hosted_account(user_id, normalized_phone):
@@ -4251,7 +4247,6 @@ class AccountManager:
         
         # 标准化手机号
         normalized_phone = AccountManager.normalize_phone(phone)
-        display_phone = AccountManager.format_phone_display(phone)
             
         session_name = f"{user_id}_{normalized_phone.replace('+', '')}.session"
         os.makedirs(PENDING_SESSIONS_DIR, exist_ok=True)

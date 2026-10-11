@@ -235,7 +235,7 @@ async def setup_vip_handlers(bot: TelegramClient, payment_system: PaymentSystem)
         clear_state(event.sender_id)
         try:
             quota = int((event.text or '').strip())
-            quote = DataManager.quote_subscription('plus', quota)
+            DataManager.quote_subscription('plus', quota)  # validates quota
         except (TypeError, ValueError) as error:
             await event.respond(t("plans.plus_invalid", error=error))
             return

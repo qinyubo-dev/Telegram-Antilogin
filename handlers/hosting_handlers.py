@@ -28,7 +28,7 @@ HOSTING_2FA_STATE_TTL_SECONDS = 10 * 60
 HOSTING_2FA_MAX_ATTEMPTS = 3
 
 
-def hosting_account_buttons(phone: str, acc: dict, user_id=None):
+def hosting_account_buttons(phone: str, acc: dict):
     digits = phone.lstrip("+")
     if AccountManager.is_account_online(acc):
         return [
@@ -41,7 +41,7 @@ def hosting_account_buttons(phone: str, acc: dict, user_id=None):
     return [[back_button(b"hosting_menu")]]
 
 
-def hosting_clean_buttons(phone: str, user_id=None):
+def hosting_clean_buttons(phone: str):
     digits = phone.lstrip("+")
     return [
         [
@@ -80,7 +80,7 @@ def hosting_cleanup_result_text(
     )
 
 
-def hosting_2fa_buttons(phone: str, user_id=None):
+def hosting_2fa_buttons(phone: str):
     digits = phone.lstrip("+")
     return [
         [Button.inline(t("hosting.password_reset"), f"hosting_2fa_reset_{digits}".encode())],
@@ -172,7 +172,7 @@ async def setup_hosting_handlers(bot: TelegramClient):
         display_phone = acc.get("display_phone", phone)
         hosting_status = AccountManager.get_hosting_status_text(user_id, phone, acc)
 
-        buttons = hosting_account_buttons(phone, acc, user_id)
+        buttons = hosting_account_buttons(phone, acc)
 
         await event.answer()
         await safe_edit(event,
@@ -274,7 +274,7 @@ async def setup_hosting_handlers(bot: TelegramClient):
         await safe_edit(
             event,
             t("hosting.clean_menu", phone=display_phone),
-            buttons=hosting_clean_buttons(phone, user_id),
+            buttons=hosting_clean_buttons(phone),
             parse_mode=None,
         )
 
@@ -359,7 +359,7 @@ async def setup_hosting_handlers(bot: TelegramClient):
         display_phone = acc.get("display_phone", phone)
         hosting_status = AccountManager.get_hosting_status_text(user_id, phone, acc)
 
-        buttons = hosting_account_buttons(phone, acc, user_id)
+        buttons = hosting_account_buttons(phone, acc)
         await event.answer()
         await safe_edit(event,
             t("hosting.detail", phone=display_phone, status=f"{hosting_status}\n\n{msg}"),
@@ -396,7 +396,7 @@ async def setup_hosting_handlers(bot: TelegramClient):
         await event.answer()
         await safe_edit(event,
             t("hosting.password_menu", phone=display_phone),
-            buttons=hosting_2fa_buttons(phone, user_id),
+            buttons=hosting_2fa_buttons(phone),
             parse_mode="md",
         )
 
