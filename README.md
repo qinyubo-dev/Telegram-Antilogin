@@ -37,6 +37,8 @@ pip install -r requirements.txt
 python bot_main.py
 ```
 
+需要有偿部署服务，可联系 [@qinyubo](https://t.me/qinyubo)。
+
 停止服务：`python scripts/stop.py`（先让进程完成清理再退出，加 `--force` 可超时强制结束）。
 
 ## 配置
