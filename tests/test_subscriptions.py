@@ -26,10 +26,10 @@ class SubscriptionTests(unittest.TestCase):
         DataManager.rebuild_subscription_index()
 
     def test_default_quotes_and_plus_expansion(self):
-        self.assertEqual(DataManager.quote_subscription('go')['price'], '0.6')
-        self.assertEqual(DataManager.quote_subscription('plus', 15)['price'], '1.5')
-        self.assertEqual(DataManager.quote_subscription('plus', 16)['price'], '1.6')
-        self.assertEqual(DataManager.quote_subscription('plus', 20)['price'], '2')
+        self.assertEqual(DataManager.quote_subscription('go')['price'], '1')
+        self.assertEqual(DataManager.quote_subscription('plus', 15)['price'], '3.5')
+        self.assertEqual(DataManager.quote_subscription('plus', 16)['price'], '3.6')
+        self.assertEqual(DataManager.quote_subscription('plus', 20)['price'], '4')
         self.assertIsNone(DataManager.quote_subscription('pro')['quota'])
         with self.assertRaises(ValueError):
             DataManager.quote_subscription('plus', 14)
@@ -106,7 +106,7 @@ class SubscriptionTests(unittest.TestCase):
         self.assertEqual(data_manager.user_data[7], before)
 
     def test_different_plan_is_scheduled_after_current_expiry(self):
-        self.assertTrue(DataManager.apply_subscription(8, 'go', 2))
+        self.assertTrue(DataManager.apply_subscription(8, 'go', 3))
         current = data_manager.user_data[8]['subscription']
         expiry = current['expires_at']
         self.assertEqual(DataManager.classify_subscription_change(8, 'plus', 15), 'switch')
@@ -119,7 +119,7 @@ class SubscriptionTests(unittest.TestCase):
 
     def test_conflicting_scheduled_change_is_rejected(self):
         DataManager.apply_subscription(9, 'pro', None)
-        DataManager.apply_subscription(9, 'go', 2)
+        DataManager.apply_subscription(9, 'go', 3)
         self.assertEqual(DataManager.classify_subscription_change(9, 'plus', 10), 'conflict')
 
     def test_expired_downgrade_clears_selection_and_requires_confirmation(self):
@@ -135,7 +135,7 @@ class SubscriptionTests(unittest.TestCase):
         }
 
         self.assertTrue(DataManager.apply_subscription(
-            12, 'go', 2, validate_catalog=False
+            12, 'go', 3, validate_catalog=False
         ))
         subscription = data_manager.user_data[12]['subscription']
         self.assertEqual(subscription['selected_accounts'], [])
@@ -153,7 +153,7 @@ class SubscriptionTests(unittest.TestCase):
         }
 
         self.assertTrue(DataManager.apply_subscription(
-            13, 'go', 2, validate_catalog=False
+            13, 'go', 3, validate_catalog=False
         ))
         subscription = data_manager.user_data[13]['subscription']
         self.assertEqual(subscription['selected_accounts'], [])
@@ -163,7 +163,7 @@ class SubscriptionTests(unittest.TestCase):
         expired = datetime.now() - timedelta(minutes=1)
         data_manager.user_data[14] = {
             'subscription': {
-                'plan_id': 'go', 'quota': 2,
+                'plan_id': 'go', 'quota': 3,
                 'starts_at': (expired - timedelta(days=30)).isoformat(),
                 'expires_at': expired.isoformat(),
                 'selected_accounts': ['111'],
@@ -172,7 +172,7 @@ class SubscriptionTests(unittest.TestCase):
         }
 
         self.assertTrue(DataManager.apply_subscription(
-            14, 'go', 2, validate_catalog=False
+            14, 'go', 3, validate_catalog=False
         ))
         subscription = data_manager.user_data[14]['subscription']
         self.assertEqual(subscription['selected_accounts'], ['111'])
@@ -181,7 +181,7 @@ class SubscriptionTests(unittest.TestCase):
     def test_scheduled_downgrade_clears_selection_when_activated(self):
         DataManager.apply_subscription(15, 'plus', 15)
         data_manager.user_data[15]['subscription']['selected_accounts'] = ['111', '222']
-        DataManager.apply_subscription(15, 'go', 2)
+        DataManager.apply_subscription(15, 'go', 3)
         data_manager.user_data[15]['subscription']['scheduled']['starts_at'] = (
             datetime.now() - timedelta(seconds=1)
         ).isoformat()
@@ -192,7 +192,7 @@ class SubscriptionTests(unittest.TestCase):
         self.assertTrue(subscription['selection_required'])
 
     def test_selection_is_staged_until_finalized(self):
-        DataManager.apply_subscription(16, 'go', 2)
+        DataManager.apply_subscription(16, 'go', 3)
         with patch.object(DataManager, 'save_user_data', return_value=True):
             self.assertTrue(DataManager.set_selected_accounts(
                 16, ['+111'], finalize=False
@@ -205,14 +205,15 @@ class SubscriptionTests(unittest.TestCase):
         self.assertFalse(data_manager.user_data[16]['subscription']['selection_required'])
 
     def test_quota_counts_retained_session_files(self):
-        DataManager.apply_subscription(10, 'go', 2)
+        DataManager.apply_subscription(10, 'go', 3)
         with tempfile.TemporaryDirectory() as directory, patch(
             'accounts.account_manager.SESSIONS_DIR', directory
         ):
             open(os.path.join(directory, '10_111.session'), 'wb').close()
             open(os.path.join(directory, '10_222.session'), 'wb').close()
+            open(os.path.join(directory, '10_333.session'), 'wb').close()
             self.assertTrue(AccountManager.get_quota_status(10)['full'])
-            self.assertFalse(AccountManager.can_add_hosted_account(10, '+333'))
+            self.assertFalse(AccountManager.can_add_hosted_account(10, '+444'))
             self.assertTrue(AccountManager.can_add_hosted_account(10, '+111'))
 
     def test_paid_order_uses_catalog_snapshot_after_catalog_change(self):
@@ -244,7 +245,7 @@ class AccountSelectionRuntimeTests(unittest.IsolatedAsyncioTestCase):
         DataManager.rebuild_subscription_index()
 
     async def test_pending_selection_cannot_resume_draft_accounts(self):
-        DataManager.apply_subscription(17, 'go', 2)
+        DataManager.apply_subscription(17, 'go', 3)
         subscription = data_manager.user_data[17]['subscription']
         subscription.update({
             'selected_accounts': ['111'],
@@ -259,7 +260,7 @@ class AccountSelectionRuntimeTests(unittest.IsolatedAsyncioTestCase):
         create_client.assert_not_awaited()
 
     def test_new_hosted_account_is_added_to_finite_subscription_selection(self):
-        DataManager.apply_subscription(20, 'go', 2)
+        DataManager.apply_subscription(20, 'go', 3)
         with patch.object(
             AccountManager, 'hosted_account_phones', return_value={'111'}
         ), patch.object(DataManager, 'save_user_data', return_value=True):
@@ -270,7 +271,7 @@ class AccountSelectionRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(subscription['selection_required'])
 
     async def test_confirmed_empty_selection_resumes_nothing(self):
-        DataManager.apply_subscription(18, 'go', 2)
+        DataManager.apply_subscription(18, 'go', 3)
         subscription = data_manager.user_data[18]['subscription']
         subscription.update({
             'selected_accounts': [],
@@ -285,7 +286,7 @@ class AccountSelectionRuntimeTests(unittest.IsolatedAsyncioTestCase):
         create_client.assert_not_awaited()
 
     async def test_resume_never_exceeds_quota_with_corrupt_selection(self):
-        DataManager.apply_subscription(19, 'go', 2)
+        DataManager.apply_subscription(19, 'go', 3)
         subscription = data_manager.user_data[19]['subscription']
         subscription.update({
             'selected_accounts': ['111', '222', '333'],
@@ -297,8 +298,8 @@ class AccountSelectionRuntimeTests(unittest.IsolatedAsyncioTestCase):
         ), patch('accounts.account_manager.os.path.exists', return_value=True), patch.object(
             AccountManager, 'create_client_from_session', create_client
         ):
-            self.assertEqual(await AccountManager.resume_selected_accounts(19), 2)
-        self.assertEqual(create_client.await_count, 2)
+            self.assertEqual(await AccountManager.resume_selected_accounts(19), 3)
+        self.assertEqual(create_client.await_count, 3)
 
 
 class SubscriptionAdminMutationTests(unittest.TestCase):

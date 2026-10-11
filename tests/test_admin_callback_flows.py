@@ -95,7 +95,7 @@ def test_admin_report(handler_bot, event_factory):
 
 
 @pytest.mark.parametrize("category", ["review", "all"])
-def test_order_lists_and_search_page(handler_bot, event_factory, category):
+def test_order_lists(handler_bot, event_factory, category):
     bot, payment = register(handler_bot)
     event = event_factory(data=f"admin_orders_{category}_0".encode())
     with common_patches()[0], common_patches()[1], common_patches()[2], patch(
@@ -103,14 +103,7 @@ def test_order_lists_and_search_page(handler_bot, event_factory, category):
     ) as edit:
         run(bot.find("admin_orders")(event))
     edit.assert_awaited_once()
-
-    set_state(1001, admin_order_query="o1")
-    page = event_factory(data=b"admin_order_search_page_0")
-    with common_patches()[0], common_patches()[1], common_patches()[2], patch(
-        "handlers.admin_handlers.edit_or_respond", new=AsyncMock()
-    ):
-        run(bot.find("admin_order_search_page")(page))
-    assert payment.list_admin_orders.call_count == 2
+    assert payment.list_admin_orders.call_count == 1
 
 
 def test_order_search_prompt(handler_bot, event_factory):
@@ -494,20 +487,10 @@ def test_delsub_command_inputs(handler_bot, event_factory, text, existing):
     event.respond.assert_awaited_once()
 
 
-@pytest.mark.parametrize("has_users", [False, True])
-def test_vip_list_and_help_callbacks(handler_bot, event_factory, has_users):
+def test_grant_and_delete_help_callbacks(handler_bot, event_factory):
     payment = payment_stub()
     payment.get_user_order_summaries = Mock(return_value={"total": 0, "items": []})
     bot, _ = register(handler_bot, payment)
-    users = [{"user_id": 2}] if has_users else []
-    with common_patches()[0], patch("handlers.admin_handlers.DataManager.get_all_subscription_users", return_value=users), patch(
-        "handlers.admin_handlers._get_user_display_name", new=AsyncMock(return_value="User")
-    ), patch("handlers.admin_handlers.AccountManager.get_quota_status", return_value={"used": 1}), patch(
-        "handlers.admin_handlers.edit_or_respond", new=AsyncMock()
-    ) as edit:
-        run(bot.find("admin_list_vip")(event_factory(data=b"admin_list_vip")))
-    edit.assert_awaited_once()
-
     for name, data in (("admin_subscription_grant_help", b"admin_subscription_grant_help"), ("admin_subscription_delete_help", b"admin_subscription_delete_help")):
         with common_patches()[0], patch("handlers.admin_handlers.safe_edit", new=AsyncMock()) as safe:
             run(bot.find(name)(event_factory(data=data)))

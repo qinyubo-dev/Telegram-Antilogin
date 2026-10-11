@@ -80,17 +80,17 @@ _AUDIT_FILTER_FIELDS = {
 }
 _SUBSCRIPTION_CONFIG_FIELDS = {
     "go": (
-        ("price", "admin.config.field.go_price", "decimal", "0.6"),
-        ("quota", "admin.config.field.go_quota", "integer", "2"),
+        ("price", "admin.config.field.go_price", "decimal", "1"),
+        ("quota", "admin.config.field.go_quota", "integer", "3"),
     ),
     "plus": (
-        ("price", "admin.config.field.plus_price", "decimal", "1.5"),
+        ("price", "admin.config.field.plus_price", "decimal", "3"),
         ("quota", "admin.config.field.plus_quota", "integer", "10"),
         ("addon_unit_price", "admin.config.field.plus_addon_price", "decimal", "0.1"),
         ("min_addon", "admin.config.field.plus_min_addon", "integer", "5"),
     ),
     "pro": (
-        ("price", "admin.config.field.pro_price", "decimal", "3"),
+        ("price", "admin.config.field.pro_price", "decimal", "6"),
     ),
     "discounts": (
         ("90", "admin.config.field.discount_90", "discount", "5"),
@@ -458,11 +458,6 @@ async def handle_admin_message(event, bot=None, payment_system: PaymentSystem = 
                 buttons.append([Button.inline(
                     f"{_order_status_text(item)} · {item['order_id']}"[:58], callback,
                 )])
-        nav = pagination_buttons(
-            "admin_order_search_page", result["page"], result["max_page"]
-        )
-        if nav:
-            buttons.append(nav)
         buttons.append([back_button(b"admin_orders_all_0")])
         await event.respond(
             t("admin.order.search_result", count=result["total"]), buttons=buttons
@@ -882,9 +877,9 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
         buttons = [
             [Button.inline(t("admin.panel.orders"), b"admin_orders_review_0", icon=5877485980901971030), Button.inline(t("admin.panel.user_search"), b"admin_user_search", icon=5874960879434338403)],
             [Button.inline(t("admin.panel.grant"), b"admin_subscription_grant_help", icon=5775937998948404844), Button.inline(t("admin.panel.delete"), b"admin_subscription_delete_help", icon=5879896690210639947)],
-            [Button.inline(t("admin.panel.subscribers"), b"admin_list_vip", icon=5960551395730919906), Button.inline(t("admin.panel.config"), b"admin_subscription_config", icon=5879841310902324730)],
-            [Button.inline(t("admin.panel.report"), b"admin_report_1", icon=5994378914636500516), Button.inline(t("admin.panel.audit"), b"admin_audit_0", icon=5877597667231534929)],
-            [Button.inline(t("admin.panel.reminders"), b"admin_reminder_settings", icon=5909201569898827582), Button.inline(t("admin.panel.refresh"), b"admin_panel", icon=5877410604225924969)],
+            [Button.inline(t("admin.panel.config"), b"admin_subscription_config", icon=5879841310902324730), Button.inline(t("admin.panel.report"), b"admin_report_1", icon=5994378914636500516)],
+            [Button.inline(t("admin.panel.audit"), b"admin_audit_0", icon=5877597667231534929), Button.inline(t("admin.panel.reminders"), b"admin_reminder_settings", icon=5909201569898827582)],
+            [Button.inline(t("admin.panel.refresh"), b"admin_panel", icon=5877410604225924969)],
             [back_button(b"back_to_main")]
         ]
 
@@ -1046,14 +1041,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             t("admin.order.search_prompt"),
             buttons=[[back_button(b"admin_orders_all_0")]],
         )
-
-    @bot.on(events.CallbackQuery(pattern=rb"admin_order_search_page_\d+"))
-    async def admin_order_search_page(event):
-        if not await require_admin(event, alert=True):
-            return
-        page = int(event.data.decode().rsplit("_", 1)[1])
-        query = get_state(event.sender_id).get("admin_order_query", "")
-        await _render_order_list(event, "all", page, query=query)
 
     @bot.on(events.CallbackQuery(pattern=rb"admin_order_detail_.+"))
     async def admin_order_detail(event):
@@ -2109,63 +2096,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             ),
             buttons=_confirmation_buttons(pending),
         )
-
-    @bot.on(events.CallbackQuery(pattern=rb"admin_list_vip(?:_\d+)?"))
-    async def admin_list_vip(event):
-        user_id = event.sender_id
-        data = event.data.decode(errors="ignore")
-        page = int(data.rsplit("_", 1)[1]) if data.startswith("admin_list_vip_") else 0
-        
-        if not await require_admin(event, alert=True):
-            return
-        _clear_admin_input_state(user_id)
-        
-        vip_users = DataManager.get_all_subscription_users()
-        
-        if not vip_users:
-            await event.answer()
-            await edit_or_respond(
-                event, t("admin.subscription.list_empty"),
-                buttons=[[back_button(b"admin_panel")]],
-            )
-            return
-
-        page_items, page, max_page = paginate_items(vip_users, page, page_size=25)
-        buttons = []
-        for vip in page_items:
-            vip_user_id = vip['user_id']
-            name = await _get_user_display_name(bot, vip_user_id)
-            hosting_count = AccountManager.get_quota_status(vip_user_id)['used']
-            label_parts = []
-            if name:
-                label_parts.append(name)
-            label_parts.extend([
-                f"ID:{vip_user_id}",
-                t("admin.subscription.hosted_label", count=hosting_count),
-            ])
-            buttons.append([
-                Button.inline(
-                    " | ".join(label_parts),
-                    f"admin_vip_user_{vip_user_id}".encode()
-                )
-            ])
-
-        nav = pagination_buttons("admin_list_vip", page, max_page)
-        if nav:
-            buttons.append(nav)
-        buttons.append([back_button(b"admin_panel")])
-        response = t("admin.subscription.list_text", count=len(vip_users))
-
-        await event.answer()
-        await edit_or_respond(event, response, buttons=buttons)
-
-    @bot.on(events.CallbackQuery(pattern=rb"admin_vip_user_\d+"))
-    async def admin_vip_user(event):
-        if not await require_admin(event, alert=True):
-            return
-        target_user_id = int(event.data.decode().removeprefix("admin_vip_user_"))
-        set_state(event.sender_id, admin_user_back="admin_list_vip")
-        await _render_user_detail(event, target_user_id)
 
     @bot.on(events.CallbackQuery(pattern=b"admin_subscription_delete_help"))
     async def admin_subscription_delete_help(event):

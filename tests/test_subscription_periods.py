@@ -33,9 +33,9 @@ class SubscriptionPeriodPricingTests(unittest.TestCase):
 
     def test_default_rounded_prices_for_all_plans(self):
         expected = {
-            'go': {30: '0.6', 90: '1.8', 180: '3.6', 365: '7.2'},
-            'plus': {30: '1', 90: '2.5', 180: '4.5', 365: '9'},
-            'pro': {30: '3', 90: '8', 180: '14.5', 365: '27'},
+            'go': {30: '1', 90: '3', 180: '6', 365: '12'},
+            'plus': {30: '3', 90: '8', 180: '14.5', 365: '27'},
+            'pro': {30: '6', 90: '16.5', 180: '29.5', 365: '54'},
         }
         for plan_id, periods in expected.items():
             for days, price in periods.items():
@@ -45,11 +45,11 @@ class SubscriptionPeriodPricingTests(unittest.TestCase):
                     self.assertEqual(quote['period_days'], days)
 
     def test_custom_plus_long_period_rounds_but_30_day_price_stays_exact(self):
-        self.assertEqual(DataManager.quote_subscription('plus', 16, 30)['price'], '1.6')
+        self.assertEqual(DataManager.quote_subscription('plus', 16, 30)['price'], '3.6')
         quote = DataManager.quote_subscription('plus', 16, 90)
-        self.assertEqual(quote['list_price'], '4.8')
-        self.assertEqual(quote['price'], '4')
-        self.assertEqual(quote['effective_monthly_price'], '1.33333333')
+        self.assertEqual(quote['list_price'], '10.8')
+        self.assertEqual(quote['price'], '9.5')
+        self.assertEqual(quote['effective_monthly_price'], '3.16666667')
 
     def test_go_never_receives_period_discount(self):
         quote = DataManager.quote_subscription('go', period_days=90)
@@ -63,7 +63,7 @@ class SubscriptionPeriodPricingTests(unittest.TestCase):
                 30: 0, 90: 50, 180: 50, 365: 50,
             }))
         annual = DataManager.quote_subscription('go', period_days=365)
-        self.assertEqual(annual['price'], '7.2')
+        self.assertEqual(annual['price'], '12')
         self.assertEqual(annual['pricing_days'], 360)
         self.assertEqual(annual['actual_discount_percent'], '0')
 
@@ -140,16 +140,16 @@ class SubscriptionPeriodPaymentTests(unittest.IsolatedAsyncioTestCase):
             )
         self.assertTrue(result['success'])
         kwargs = self.payment.create_payment_link.await_args.kwargs
-        self.assertEqual(kwargs['amount'], '9')
+        self.assertEqual(kwargs['amount'], '27')
         self.assertEqual(
             kwargs['name'], '🥈 PLUS · 进阶方案｜365天尊享订阅'
         )
         metadata = kwargs['_order_metadata']
         self.assertEqual(metadata['period_days'], 365)
-        self.assertEqual(metadata['list_price'], '12')
+        self.assertEqual(metadata['list_price'], '36')
         self.assertEqual(metadata['pricing_days'], 360)
         self.assertEqual(metadata['configured_discount_percent'], '25')
-        self.assertEqual(metadata['effective_monthly_price'], '0.73972603')
+        self.assertEqual(metadata['effective_monthly_price'], '2.21917808')
 
     async def test_payment_names_follow_vip_plan_hierarchy(self):
         self.payment.create_payment_link = AsyncMock(return_value={

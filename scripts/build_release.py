@@ -19,7 +19,6 @@ DEPLOYMENT_FILES = (
     "README.md",
     "bot_main.py",
     "china_time.py",
-    "config.example.py",
     "localization.py",
     "project_info.py",
     "requirements.txt",

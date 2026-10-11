@@ -1766,9 +1766,9 @@ class AdminPanelConfigurationFlowTests(unittest.IsolatedAsyncioTestCase):
             [
                 ["订单中心", "用户搜索"],
                 ["发放订阅", "删除订阅"],
-                ["订阅用户", "方案设置"],
-                ["运营报表", "审计日志"],
-                ["提醒设置", "刷新数据"],
+                ["方案设置", "运营报表"],
+                ["审计日志", "提醒设置"],
+                ["刷新数据"],
             ],
         )
         button_by_text = {button.text: button for row in buttons for button in row}

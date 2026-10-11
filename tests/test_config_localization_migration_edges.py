@@ -54,25 +54,3 @@ def test_settings_numeric_paths_and_validation(tmp_path):
         settings, "BOT_TOKEN", "token"
     ), patch.object(settings, "MERCHANT_ID", "merchant"), patch.object(settings, "PAYMENT_TOKEN", "payment"):
         settings.validate_runtime_settings()
-
-
-def test_config_template_only_contains_operator_values():
-    tree = ast.parse(
-        (PROJECT_ROOT / "config.example.py").read_text(encoding="utf-8")
-    )
-    assigned = {
-        target.id
-        for node in tree.body
-        if isinstance(node, ast.Assign)
-        for target in node.targets
-        if isinstance(target, ast.Name)
-    }
-    assert assigned == {
-        "API_ID",
-        "API_HASH",
-        "BOT_TOKEN",
-        "ADMIN_IDS",
-        "MERCHANT_ID",
-        "PAYMENT_TOKEN",
-        "PAYMENT_RETURN_URL",
-    }

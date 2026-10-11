@@ -76,12 +76,12 @@ class DataManager:
     @staticmethod
     def default_subscription_catalog() -> Dict:
         return {
-            'go': {'name': 'Go', 'price': '0.6', 'quota': 2, 'coin': 'USDT'},
+            'go': {'name': 'Go', 'price': '1', 'quota': 3, 'coin': 'USDT'},
             'plus': {
-                'name': 'Plus', 'price': '1', 'quota': 10, 'coin': 'USDT',
+                'name': 'Plus', 'price': '3', 'quota': 10, 'coin': 'USDT',
                 'addon_unit_price': '0.1', 'min_addon': 5,
             },
-            'pro': {'name': 'Pro', 'price': '3', 'quota': None, 'coin': 'USDT'},
+            'pro': {'name': 'Pro', 'price': '6', 'quota': None, 'coin': 'USDT'},
         }
 
     @staticmethod

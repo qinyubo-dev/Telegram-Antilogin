@@ -33,8 +33,7 @@
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-cp config.example.py config.py
-# 编辑 config.py，填入下方「配置」中的必填项
+# 新建 config.py，填入下方「配置」中的必填项（见下表）
 python bot_main.py
 ```
 
@@ -46,7 +45,7 @@ python bot_main.py
 
 | 配置项 | 说明 |
 | --- | --- |
-| `API_ID`、`API_HASH` | 默认使用 Telegram 官方电脑客户端配置（`2040` / `b18441a1ff607e10a989891a5462e627`），兼容性更好，推荐保持不变 |
+| `API_ID`、`API_HASH` | 默认使用 Telegram 官方电脑客户端配置 |
 | `BOT_TOKEN` | BotFather 提供的 Bot Token |
 | `ADMIN_IDS` | 管理员数字 ID 列表，例如 `[123456789]` |
 | `MERCHANT_ID`、`PAYMENT_TOKEN` | OkayPay 商户凭据 |

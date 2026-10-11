@@ -392,7 +392,6 @@ ADMIN_ZH: Dict[str, str] = {
     "admin.panel.user_search": "用户搜索",
     "admin.panel.grant": "发放订阅",
     "admin.panel.delete": "删除订阅",
-    "admin.panel.subscribers": "订阅用户",
     "admin.panel.config": "方案设置",
     "admin.panel.report": "运营报表",
     "admin.panel.audit": "审计日志",
@@ -548,9 +547,6 @@ ADMIN_ZH: Dict[str, str] = {
         "🗑 删除订阅\n\n`/delsub 用户 ID`\n\n"
         "删除后会立即停用该用户运行中的托管账户，但保留账户资料与 Session 文件。"
     ),
-    "admin.subscription.list_empty": "📭 暂无订阅用户",
-    "admin.subscription.list_text": "⭐ 订阅用户列表\n\n点击条目查看用户详情。\n共 {count} 个有效订阅用户",
-    "admin.subscription.hosted_label": "托管:{count}",
     "admin.config.field.go_price": "GO 价格（USDT）",
     "admin.config.field.go_quota": "GO 席位",
     "admin.config.field.plus_price": "PLUS 价格（USDT）",

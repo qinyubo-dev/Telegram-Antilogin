@@ -443,7 +443,7 @@ def test_period_reader_falls_back_per_invalid_entry(isolated_storage):
         ("unknown", None, 30, "未知"),
         ("plus", 11, 30, "至少增加"),
         ("plus", 5, 30, "不能低于"),
-        ("go", 3, 30, "不支持自定义"),
+        ("go", 4, 30, "不支持自定义"),
         ("go", None, "bad", "周期无效"),
         ("go", None, 31, "不支持"),
     ],
@@ -473,10 +473,10 @@ def test_remaining_billing_segments_filters_sorts_and_falls_back(isolated_storag
     assert segments[0]["monthly_price"] == "1.2"
     assert DataManager._remaining_billing_segments({}, now) == []
     assert DataManager._remaining_billing_segments(
-        {"expires_at": (now - timedelta(days=1)).isoformat(), "plan_id": "go", "quota": 2}, now
+        {"expires_at": (now - timedelta(days=1)).isoformat(), "plan_id": "go", "quota": 3}, now
     ) == []
     fallback = DataManager._remaining_billing_segments(
-        {"expires_at": future.isoformat(), "plan_id": "go", "quota": 2}, now
+        {"expires_at": future.isoformat(), "plan_id": "go", "quota": 3}, now
     )
     assert fallback[0]["price_source"] == "catalog_fallback"
 
@@ -492,18 +492,18 @@ def test_subscription_read_hosting_and_classification_edges(isolated_storage, mo
     assert DataManager.get_hosting_quota(1) == 0
 
     with patch.object(DataManager, "get_subscription", return_value=None):
-        assert DataManager.classify_subscription_change(1, "go", 2) == "new"
-    scheduled = {"scheduled": {"plan_id": "go", "quota": 2}}
+        assert DataManager.classify_subscription_change(1, "go", 3) == "new"
+    scheduled = {"scheduled": {"plan_id": "go", "quota": 3}}
     with patch.object(DataManager, "get_subscription", return_value=scheduled):
-        assert DataManager.classify_subscription_change(1, "go", 2) == "scheduled_renewal"
+        assert DataManager.classify_subscription_change(1, "go", 3) == "scheduled_renewal"
         assert DataManager.classify_subscription_change(1, "plus", 10) == "conflict"
 
 
 @pytest.mark.parametrize(
     "args",
     [
-        ("bad", "go", 2),
-        (0, "go", 2),
+        ("bad", "go", 3),
+        (0, "go", 3),
         (1, "unknown", 2),
         (1, "go", "bad"),
         (1, "go", 0),
@@ -521,11 +521,11 @@ def test_apply_subscription_rejects_invalid_billing_price(isolated_storage, pric
     if price is None:
         with patch.object(DataManager, "quote_subscription", side_effect=ValueError):
             assert not DataManager.apply_subscription(
-                1, "go", 2, validate_catalog=False, billing_price=None
+                1, "go", 3, validate_catalog=False, billing_price=None
             )
     else:
         assert not DataManager.apply_subscription(
-            1, "go", 2, validate_catalog=False, billing_price=price
+            1, "go", 3, validate_catalog=False, billing_price=price
         )
 
 
@@ -683,8 +683,8 @@ def test_save_payment_orders_guards_and_temp_cleanup(isolated_storage, tmp_path)
         {"type": "subscription_purchase"},
         {"type": "subscription_purchase", "user_id": 1, "plan_id": "bad", "quota": 1, "coin": "USDT", "amount": 1},
         {"type": "subscription_purchase", "user_id": 1, "plan_id": "go", "quota": 0, "coin": "USDT", "amount": 1},
-        {"type": "subscription_purchase", "user_id": 1, "plan_id": "go", "quota": 2, "coin": "BTC", "amount": 1},
-        {"type": "subscription_purchase", "user_id": 1, "plan_id": "go", "quota": 2, "coin": "USDT", "amount": 0},
+        {"type": "subscription_purchase", "user_id": 1, "plan_id": "go", "quota": 3, "coin": "BTC", "amount": 1},
+        {"type": "subscription_purchase", "user_id": 1, "plan_id": "go", "quota": 3, "coin": "USDT", "amount": 0},
     ],
 )
 def test_fulfillment_rejects_invalid_order_shapes(isolated_storage, order):
