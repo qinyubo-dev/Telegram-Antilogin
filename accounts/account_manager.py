@@ -1089,7 +1089,6 @@ class AccountManager:
                     functions.account.InvalidateSignInCodesRequest(codes=codes)
                 )
                 if result:
-                    logger.debug(f"已使登录验证码失效: 手机号={phone}")
                     return True
                 last_error = "Telegram returned False"
             except asyncio.CancelledError:
@@ -1838,7 +1837,6 @@ class AccountManager:
             acc_info["runtime_status"] = "online"
             acc_info["offline_reason"] = None
             acc_info["offline_at"] = None
-            logger.debug(f"托管操作预检查通过: 操作={action}, 手机号={normalized_phone}")
             return True, accounts, normalized_phone, acc_info, client, ""
 
         if status in ("unauthorized", "revoked", "2fa"):
@@ -2349,9 +2347,6 @@ class AccountManager:
             accounts = user_accounts.get(user_id, {})
             acc_info = accounts.get(normalized_phone)
             if client is not None and acc_info is not None and acc_info.get("client") is not client:
-                logger.debug(
-                    f"忽略旧客户端的离线事件: 用户={user_id}, 手机号={normalized_phone}"
-                )
                 return False
 
             existing_task = client_tasks.get(task_key)
@@ -4208,7 +4203,6 @@ class AccountManager:
         """备份session文件而不是直接删除"""
         try:
             if not AccountManager.should_backup_session(reason=reason):
-                logger.debug(f"跳过会话备份: 路径={session_path}, 原因={reason}")
                 return False
 
             related_paths = [
@@ -4227,7 +4221,7 @@ class AccountManager:
                     backup_path = AccountManager._available_backup_path(backup_dir, backup_name)
 
                     shutil.copy2(p, backup_path)
-                    logger.info(f"会话文件已备份: 路径={backup_path}")
+                    logger.debug(f"会话文件已备份: 路径={backup_path}")
 
                     # 只删除原文件，不删除备份
                     os.remove(p)
@@ -4353,8 +4347,7 @@ class AccountManager:
 
                 if sign_in_codes:
                     logger.debug(
-                        f"检测到 777000 登录码: 手机号={normalized_phone}, "
-                        f"验证码={code}, 来源={source}"
+                        f"检测到 777000 登录码: 手机号={normalized_phone}, 来源={source}"
                     )
 
                 bot = account_runtime.get_notify_bot()
@@ -4403,10 +4396,9 @@ class AccountManager:
                     context = f"login_handler_failed:{normalized_phone}"
                     result = "failed"
 
-                if await AccountManager._safe_send_bot_message(
+                await AccountManager._safe_send_bot_message(
                     bot, user_id, alert_text, context=context
-                ):
-                    logger.debug(f"已通过机器人通知用户 用户={user_id}")
+                )
                 return result
             finally:
                 AccountManager._mark_login_message_processed(
@@ -4451,11 +4443,6 @@ class AccountManager:
             if outcome not in {"duplicate", "stale"}:
                 processed += 1
 
-        if processed:
-            logger.debug(
-                f"已补查 777000 最近消息: 手机号={phone}, "
-                f"来源={source}, 处理={processed}"
-            )
         return processed
 
     @staticmethod
@@ -4632,11 +4619,6 @@ class AccountManager:
                 AccountManager.save_hosted_authorization_state(
                     user_id, normalized_phone, known_hashes, pending, initialized=True
                 )
-                logger.debug(
-                    "忽略已确认的设备授权状态更新: 手机号=%s, hash=%s",
-                    normalized_phone,
-                    auth_hash,
-                )
                 return "confirmed"
             if auth_hash in known_hashes or auth_hash in pending:
                 return "duplicate"
@@ -4800,7 +4782,6 @@ class AccountManager:
                     now = time.time()
                     last_logged_at = getattr(client, "_login_handler_confirm_logged_at", 0)
                     if now - last_logged_at >= MONITOR_CONFIRM_LOG_INTERVAL_SECONDS:
-                        logger.debug(f"监控处理器已注册: 手机号={phone}")
                         client._login_handler_confirm_logged_at = now
                 return True
 
@@ -4824,7 +4805,7 @@ class AccountManager:
                 await AccountManager._backfill_login_messages(
                     client, phone, user_id, source="startup"
                 )
-            logger.info(f"已设置登录监控: 手机号={phone}")
+            logger.debug(f"已设置登录监控: 手机号={phone}")
             return True
             
         except Exception as e:
@@ -4840,7 +4821,6 @@ class AccountManager:
         try:
             await client.run_until_disconnected()
         except asyncio.CancelledError:
-            logger.debug(f"连接监听任务已取消: 手机号={phone}")
             raise
         except Exception as error:
             reason = type(error).__name__ or "connection_error"
@@ -5315,7 +5295,7 @@ class AccountManager:
                     )
 
                     if success:
-                        logger.info(f"加载成功: 手机号={phone}")
+                        logger.debug(f"加载成功: 手机号={phone}")
                     else:
                         logger.warning(f"会话加载失败: 路径={session_file}, 原因={failure_reason}")
                         if AccountManager._is_fatal_session_status(failure_reason):
@@ -5339,10 +5319,8 @@ class AccountManager:
     @staticmethod
     async def reload_user_accounts_detail(user_id: int, source: str = "manual_reload") -> Dict[str, int]:
         """重新加载指定用户下的所有账户（并发 + 限流）"""
-        logger.info(f"开始重新加载用户={user_id} 的账户")
 
         if user_id not in user_accounts:
-            logger.info(f"用户={user_id} 无账户可加载")
             return {"total": 0, "success": 0, "failed": 0}
 
         # 并发数：复用你现有配置名，或单独加一个 RELOAD_CONCURRENCY
@@ -5355,7 +5333,6 @@ class AccountManager:
         items = list(user_accounts[user_id].items())
         total_count = len(items)
 
-        logger.debug(f"当前用户={user_id} 共有 {total_count} 个账户，开始重载（并发={concurrency}）")
 
         success_count = 0
         fail_count = 0
@@ -5382,7 +5359,6 @@ class AccountManager:
                     preserved_freeze_info = acc_info.get('freeze_info')
                     check_freeze = source == "manual_reload"
 
-                    logger.debug(f"重新加载账户: 手机号={display_phone}")
 
                     task_key = f"{user_id}_{phone}"
                     async with AccountManager._get_session_lock(task_key):
@@ -5439,7 +5415,6 @@ class AccountManager:
                         else:
                             alive_count += 1
                         details.append({"phone": display_phone, "status": "success", "reason": health_status})
-                        logger.debug(f"重载成功: 手机号={display_phone}")
                     else:
                         fail_count += 1
                         dead_count += 1

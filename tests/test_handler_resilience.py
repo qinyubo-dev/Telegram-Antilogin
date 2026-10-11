@@ -68,7 +68,7 @@ class SafeEditTests(unittest.IsolatedAsyncioTestCase):
             message_id=456,
             answer=AsyncMock(side_effect=QueryIdInvalidError(None)),
         )
-        with self.assertLogs("handlers.handler_utils", level="INFO"):
+        with self.assertLogs("handlers.handler_utils", level="DEBUG"):
             self.assertFalse(await safe_answer_callback(event))
 
     async def test_message_not_modified_is_ignored(self):
@@ -95,7 +95,7 @@ class SafeEditTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(MessageIdInvalidError):
             await safe_edit(event, "new content")
 
-        with self.assertLogs("handlers.handler_utils", level="INFO"):
+        with self.assertLogs("handlers.handler_utils", level="DEBUG"):
             self.assertIsNone(
                 await safe_edit(event, "new content", ignore_invalid=True)
             )

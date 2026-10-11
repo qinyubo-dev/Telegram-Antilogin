@@ -983,7 +983,6 @@ async def setup_account_handlers(bot: TelegramClient):
                     limit_text = "200 KB" if is_zip_upload else "40 KB"
                     await event.respond(t("account.upload.too_large", file=file_name, limit=limit_text), parse_mode="md")
                     return
-                logger.debug(f"用户={user_id} 上传文件: {file_name}")
 
                 if is_zip_upload:
                     try:
@@ -1053,7 +1052,7 @@ async def setup_account_handlers(bot: TelegramClient):
                     await event.respond(
                         t("account.upload.invalid_format", file=file_name)
                     )
-                    logger.warning(f"会话文件格式无效: {file_name}")
+                    logger.info(f"会话文件格式无效: {file_name}")
                 elif failure_reason == "existing_session_busy":
                     await event.respond(t("account.upload.busy"))
                 elif failure_reason == "replace_failed_restored":
@@ -1064,7 +1063,7 @@ async def setup_account_handlers(bot: TelegramClient):
                     await event.respond(localized_result(AccountManager.quota_error_message(user_id)))
                 else:
                     await event.respond(t("account.upload.invalid"))
-                    logger.warning(f"会话文件无效: {event.file.name}")
+                    logger.info(f"会话文件无效: {event.file.name}")
 
             except Exception as e:
                 await event.respond(t("account.upload.failed", error=str(e)))

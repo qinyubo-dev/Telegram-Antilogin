@@ -66,7 +66,7 @@ async def cancel_login_unlock_flow(user_id: int) -> None:
     except asyncio.CancelledError:
         pass
     except Exception:
-        logger.info("取消登录解锁检测任务时任务已异常结束: 用户=%s", user_id)
+        logger.debug("取消登录解锁检测任务时任务已异常结束: 用户=%s", user_id)
 
 
 async def setup_login_unlock_handlers(bot: TelegramClient):
@@ -264,7 +264,7 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.info("登录解锁结果消息已不可编辑: 用户=%s", user_id)
+            logger.debug("登录解锁结果消息已不可编辑: 用户=%s", user_id)
         finally:
             if _login_unlock_probe_tasks.get(int(user_id)) is task:
                 _login_unlock_probe_tasks.pop(int(user_id), None)

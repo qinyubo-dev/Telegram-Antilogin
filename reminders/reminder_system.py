@@ -269,9 +269,7 @@ class ReminderSystem:
     async def start_monitoring(self):
         """启动提醒监控"""
         if self.monitoring_task and not self.monitoring_task.done():
-            logger.debug("VIP 到期提醒监控已在运行，跳过重复启动")
             return self.monitoring_task
-        logger.debug("启动 VIP 到期提醒监控")
         self.monitoring_task = asyncio.create_task(
             self._monitor_reminders(), name="vip-expiry-reminders"
         )
@@ -357,6 +355,6 @@ class ReminderSystem:
             try:
                 await self.monitoring_task
             except asyncio.CancelledError:
-                logger.debug("提醒监控已停止")
+                pass
             finally:
                 self.monitoring_task = None

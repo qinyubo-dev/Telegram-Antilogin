@@ -235,8 +235,8 @@ class RateLimitTelethonSyncWarningsFilter(logging.Filter):
 
 def configure_logging():
     formatter = HighlightErrorFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_level_name = os.getenv("BOT_LOG_FILE_LEVEL", "DEBUG").upper()
-    file_level = getattr(logging, file_level_name, logging.DEBUG)
+    file_level_name = os.getenv("BOT_LOG_FILE_LEVEL", "INFO").upper()
+    file_level = getattr(logging, file_level_name, logging.INFO)
     log_directory = os.getenv(
         "BOT_LOG_DIR",
         str(getattr(config, "BOT_LOG_DIR", "logs")),
@@ -507,7 +507,6 @@ async def _wait_for_runtime_termination():
 async def cleanup():
     """停止后台任务、持久化数据，并断开主 Bot 与托管客户端。"""
     global subscription_task
-    logger.info("开始清理运行资源")
 
     if subscription_task:
         subscription_task.cancel()
@@ -517,7 +516,6 @@ async def cleanup():
     if reminder_system:
         try:
             await reminder_system.stop_monitoring()
-            logger.debug("提醒系统已停止")
         except Exception as e:
             logger.error(f"停止提醒系统失败: {e}")
 
@@ -525,20 +523,17 @@ async def cleanup():
         try:
             await login_unlock_reminder_system.stop_monitoring()
             account_runtime.set_login_unlock_reminder_system(None)
-            logger.debug("登录解限提醒系统已停止")
         except Exception as e:
             logger.error(f"停止登录解限提醒系统失败: {e}")
 
     if payment_system:
         try:
             await payment_system.stop_monitoring()
-            logger.debug("支付订单监控已停止")
         except Exception as e:
             logger.error(f"停止支付订单监控失败: {e}")
 
     try:
         DataManager.save_user_data()
-        logger.debug("用户数据已保存")
     except Exception as e:
         logger.error(f"保存用户数据失败: {e}")
 
@@ -576,7 +571,6 @@ async def cleanup():
     if bot:
         try:
             await bot.disconnect()
-            logger.info("Bot 客户端已断开")
         except Exception as e:
             logger.error(f"断开Bot 客户端失败: {e}")
 
@@ -607,7 +601,6 @@ async def main():
         # 确保会话目录存在
         if not os.path.exists(config.SESSIONS_DIR):
             os.makedirs(config.SESSIONS_DIR)
-            logger.debug(f"创建会话目录: {config.SESSIONS_DIR}")
 
         instance_lock = ProcessInstanceLock(
             os.path.join(config.SESSIONS_DIR, ".anti_login.instance.lock")
@@ -643,7 +636,6 @@ async def main():
             raise RuntimeError("历史订阅账户选择清理失败，已停止启动以避免覆盖用户数据")
         if not AdminAuditLog.prune():
             logger.error("管理员审计日志启动清理失败，将在后续写入时重试")
-        logger.debug("用户数据加载完成")
         
         # 先创建主 Bot 客户端，确保依赖它的模块从构造开始即持有有效客户端。
         # 使用 Telethon 原生客户端并固定复用 bot.session。
@@ -656,21 +648,16 @@ async def main():
 
         # 初始化支付系统
         payment_system = PaymentSystem()
-        logger.debug("支付系统初始化完成")
         
         # 初始化提醒系统
         reminder_system = ReminderSystem(bot)
-        logger.debug("提醒系统初始化完成")
         login_unlock_reminder_system = LoginUnlockReminderSystem(bot)
         account_runtime.set_login_unlock_reminder_system(login_unlock_reminder_system)
-        logger.debug("登录解限提醒系统初始化完成")
         
         AccountManager.set_notify_bot(bot)
         payment_system.set_bot(bot)
         await setup_bot_handlers(bot, payment_system)
-        guarded_count = account_runtime.install_notify_bot_handler_guards(bot)
-        logger.debug("已为 %d 个主 Bot 事件处理器安装致命错误边界", guarded_count)
-        logger.debug("Telegram 客户端初始化完成")
+        account_runtime.install_notify_bot_handler_guards(bot)
         
         # 启动机器人
         await _start_notify_bot()
@@ -678,25 +665,19 @@ async def main():
         logger.info("机器人已启动 · %s", PROJECT_ATTRIBUTION)
         
         # 加载所有session
-        logger.debug("开始加载所有Session 文件")
         await AccountManager.load_all_sessions()
         account_runtime.mark_ready()
-        logger.info("所有Session 文件加载完成")
         
         await payment_system.start_monitoring()
-        logger.info("支付系统自动检测已启动（5秒间隔，持续5分钟）")
         
         # 启动提醒系统监控
         await reminder_system.start_monitoring()
-        logger.info("提醒系统监控已启动")
         await login_unlock_reminder_system.start_monitoring()
-        logger.info("登录解限提醒监控已启动")
         subscription_task = asyncio.create_task(
             _monitor_subscriptions(), name='subscription-coordinator'
         )
 
         # 托管连接由 Telethon 自动重连和事件监听维护；重新加载只保留手动触发。
-        logger.debug("自动重载已禁用；使用 Telethon 连接监听和手动重新加载")
         
         # 发送启动成功消息给管理员
         try:

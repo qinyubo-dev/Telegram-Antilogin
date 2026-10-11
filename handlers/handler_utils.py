@@ -70,7 +70,7 @@ async def safe_edit(event, *args, ignore_invalid: bool = False, **kwargs):
     except MessageIdInvalidError:
         if not ignore_invalid:
             raise
-        logger.info(
+        logger.debug(
             "跳过编辑过期回调消息: 用户=%s, 消息=%s",
             getattr(event, "sender_id", "unknown"),
             getattr(event, "message_id", getattr(event, "id", "unknown")),
@@ -84,7 +84,7 @@ async def safe_answer_callback(event, *args, **kwargs) -> bool:
         await event.answer(*args, **kwargs)
         return True
     except QueryIdInvalidError:
-        logger.info(
+        logger.debug(
             "回调确认已过期: 用户=%s, 消息=%s",
             getattr(event, "sender_id", "unknown"),
             getattr(event, "message_id", getattr(event, "id", "unknown")),
@@ -176,7 +176,7 @@ async def delete_remembered_start_command(user_id: int) -> bool:
         await message.delete()
         return True
     except Exception:
-        logger.warning("无法删除扫码流程对应的 /start 消息: 用户=%s", user_id)
+        logger.debug("无法删除扫码流程对应的 /start 消息: 用户=%s", user_id)
         return False
 
 
@@ -195,7 +195,7 @@ async def delete_remembered_main_menu(user_id: int) -> bool:
         await message.delete()
         return True
     except Exception:
-        logger.info("无法删除旧的主菜单消息: 用户=%s", user_id)
+        logger.debug("无法删除旧的主菜单消息: 用户=%s", user_id)
         return False
 
 

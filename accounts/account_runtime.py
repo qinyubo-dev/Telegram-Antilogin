@@ -186,7 +186,7 @@ def _guard_notify_bot_handler(callback):
                 try:
                     return await answer(*args, **kwargs)
                 except QueryIdInvalidError:
-                    logger.info(
+                    logger.debug(
                         "回调确认已过期: handler=%s, 用户=%s",
                         callback.__name__,
                         getattr(event, "sender_id", "unknown"),

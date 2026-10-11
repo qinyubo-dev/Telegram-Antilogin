@@ -106,7 +106,7 @@ class DataManager:
             suffix += 1
 
         shutil.copy2(DATA_FILE, backup_path)
-        logger.info(f"用户数据备份已创建: 路径={backup_path}")
+        logger.debug(f"用户数据备份已创建: 路径={backup_path}")
         return backup_path
     
     @staticmethod
@@ -157,7 +157,7 @@ class DataManager:
                     return False
                 DataManager.save_user_data()
                 DataManager.rebuild_subscription_index()
-                logger.debug("用户数据文件不存在，已创建空数据")
+                logger.info("用户数据文件不存在，已创建空数据")
                 return True
         except Exception as e:
             logger.error(f"加载用户数据失败: {e}")
@@ -208,7 +208,7 @@ class DataManager:
 
             os.replace(tmp_path, DATA_FILE)
             tmp_path = None
-            logger.info("用户数据已保存")
+            logger.debug("用户数据已保存")
             return True
         except Exception as e:
             logger.error(f"保存用户数据失败: {e}")
