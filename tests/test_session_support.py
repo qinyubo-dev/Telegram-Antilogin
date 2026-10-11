@@ -8,7 +8,7 @@ import os
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 from telethon.errors import AccessTokenInvalidError

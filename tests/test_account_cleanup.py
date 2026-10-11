@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import asyncio
-import os
 import re
-import tempfile
 import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch

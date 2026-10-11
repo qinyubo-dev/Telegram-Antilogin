@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -101,7 +100,7 @@ def test_admin_action_queue_replace_expire_and_buttons():
     ) as audit, patch("handlers.admin_handlers.secrets.token_hex", side_effect=["one", "two"]), patch(
         "handlers.admin_handlers.time.time", return_value=100
     ):
-        first = admin_handlers._queue_admin_action(1, "subscription.grant", 2, {"x": 1}, None)
+        admin_handlers._queue_admin_action(1, "subscription.grant", 2, {"x": 1}, None)
         second = admin_handlers._queue_admin_action(1, "subscription.delete", 2, {}, {"plan": "go"})
     audit.assert_called_once()
     assert admin_handlers._confirmation_buttons(second)[0][0].data.endswith(b"two")

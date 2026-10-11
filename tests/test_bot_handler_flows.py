@@ -9,7 +9,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from telethon import events
 
 from handlers import bot_handlers
 from handlers.handler_utils import clear_state, set_state

@@ -11,7 +11,6 @@ source =
     storage
     bot_main
     localization
-    migrate_runtime_data
     settings
 
 [report]

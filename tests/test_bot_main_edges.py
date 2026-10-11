@@ -132,7 +132,7 @@ def test_reconcile_subscription_paths(case):
     phones = {"1", "2"} if case == "selection_suspend" else {"1"}
     with patch("bot_main.DataManager.get_subscription", return_value=subscription), patch(
         "bot_main.AccountManager.hosted_account_phones", return_value=phones
-    ), patch("bot_main.DataManager.set_selected_accounts", return_value=True) as select, patch(
+    ), patch("bot_main.DataManager.set_selected_accounts", return_value=True), patch(
         "bot_main.AccountManager.suspend_user_accounts", new=AsyncMock()
     ) as suspend, patch(
         "bot_main.AccountManager.resume_selected_accounts", new=AsyncMock()

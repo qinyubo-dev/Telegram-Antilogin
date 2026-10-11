@@ -3,8 +3,7 @@
 
 import copy
 import unittest
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
 from handlers.vip_handlers import _order_billing_text

@@ -248,7 +248,6 @@ class DataManager:
         user_id: int, expiry_date: datetime, active: bool = True
     ) -> None:
         """更新单个用户的活跃订阅索引。"""
-        global subscription_expiry_index
         if not isinstance(user_id, int):
             return
         if not active:
@@ -263,7 +262,6 @@ class DataManager:
     @staticmethod
     def iter_subscription_users():
         """遍历活跃订阅用户。"""
-        global subscription_expiry_index
         if not subscription_expiry_index:
             # 可能还没构建，尝试构建一次
             DataManager.rebuild_subscription_index()
@@ -278,7 +276,6 @@ class DataManager:
     @staticmethod
     def has_active_subscription(user_id: int) -> bool:
         """检查用户是否有活跃订阅。"""
-        global subscription_expiry_index
         ts = subscription_expiry_index.get(user_id)
         if ts is not None:
             return datetime.now().timestamp() < ts

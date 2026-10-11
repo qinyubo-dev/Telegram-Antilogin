@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from telethon import types
 
 from handlers import transfer_handlers
 from handlers.handler_utils import clear_state, get_state, set_state
