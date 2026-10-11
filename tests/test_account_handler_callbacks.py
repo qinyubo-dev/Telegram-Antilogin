@@ -245,7 +245,7 @@ def test_upload_guards_size_cleanup_and_exception(handler_bot, event_factory):
     denied.download_media.assert_not_awaited()
     denied.delete.assert_awaited_once()
 
-    too_large = upload_event(event_factory, size=100_000)
+    too_large = upload_event(event_factory, size=6_000_000)
     with patch("handlers.account_handlers.require_access", new=AsyncMock(return_value=True)):
         run(bot.find("handle_account_messages")(too_large))
     too_large.download_media.assert_not_awaited()

@@ -31,6 +31,7 @@ from accounts.session_upload import (
     ZipSessionUploadError,
     extract_zip_session_entry,
     find_zip_session_entries,
+    SESSION_UPLOAD_LIMIT_TEXT,
     is_upload_size_allowed,
     render_zip_import_summary,
     render_zip_upload_error,
@@ -952,7 +953,7 @@ async def setup_account_handlers(bot: TelegramClient):
 
             declared_size = int(getattr(event.file, "size", 0) or 0)
             if not is_upload_size_allowed(file_name, declared_size):
-                limit_text = "200 KB" if is_zip_upload else "40 KB"
+                limit_text = SESSION_UPLOAD_LIMIT_TEXT
                 await delete_sensitive_message(event, "oversized session upload")
                 await event.respond(t("account.upload.too_large", file=file_name, limit=limit_text), parse_mode="md")
                 return
@@ -980,7 +981,7 @@ async def setup_account_handlers(bot: TelegramClient):
 
                 actual_size = os.path.getsize(temp_path)
                 if not is_upload_size_allowed(file_name, actual_size):
-                    limit_text = "200 KB" if is_zip_upload else "40 KB"
+                    limit_text = SESSION_UPLOAD_LIMIT_TEXT
                     await event.respond(t("account.upload.too_large", file=file_name, limit=limit_text), parse_mode="md")
                     return
 

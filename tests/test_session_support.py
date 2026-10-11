@@ -144,7 +144,7 @@ def test_extract_zip_session_entry_enforces_stream_limit_and_removes_partial_fil
 
         def read(self, size):
             self.calls += 1
-            return b"x" * 8192 if self.calls <= 6 else b""
+            return b"x" * 8192 if self.calls <= 700 else b""
 
     class Archive:
         def __enter__(self):
@@ -187,7 +187,7 @@ def test_upload_size_limit():
     cases = [
         ("x.session", SESSION_UPLOAD_MAX_BYTES),
         ("X.SESSION", SESSION_UPLOAD_MAX_BYTES),
-        ("x.zip", 200 * 1024),
+        ("x.zip", 5 * 1024 * 1024),
         ("x.txt", None),
         ("", None),
     ]
@@ -200,7 +200,7 @@ def test_is_upload_size_allowed():
         ("x.session", 0, True),
         ("x.session", SESSION_UPLOAD_MAX_BYTES, True),
         ("x.session", SESSION_UPLOAD_MAX_BYTES + 1, False),
-        ("x.zip", 200 * 1024, True),
+        ("x.zip", 5 * 1024 * 1024, True),
         ("x.zip", -1, False),
         ("x.txt", 1, False),
     ]

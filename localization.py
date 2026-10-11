@@ -767,7 +767,7 @@ USER_RESULT_ZH: Dict[str, str] = {
     "account.upload.zip_empty": "❌ ZIP 中未找到 .session 文件",
     "account.upload.zip_too_many": "❌ ZIP 中最多允许 {count} 个 Session 文件",
     "account.upload.zip_encrypted": "❌ 加密的 Session 文件不受支持",
-    "account.upload.zip_session_too_large": "❌ Session 文件解压后超过 40 KB",
+    "account.upload.zip_session_too_large": "❌ Session 文件解压后超过 {limit}",
     "account.upload.zip_extract_failed": "❌ Session 文件解压失败",
     "account.no_access": "无权限使用此功能",
     "account.session_releasing": "旧登录会话仍在释放中，请稍后重新添加账户",

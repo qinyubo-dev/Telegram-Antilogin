@@ -10,8 +10,9 @@ from typing import List, Optional
 from localization import t
 
 
-SESSION_UPLOAD_MAX_BYTES = 40 * 1024
-ZIP_UPLOAD_MAX_BYTES = 200 * 1024
+SESSION_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+ZIP_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+SESSION_UPLOAD_LIMIT_TEXT = "5 MB"
 ZIP_MAX_SESSION_FILES = 25
 
 
@@ -56,7 +57,7 @@ def extract_zip_session_entry(zip_path: str, entry: zipfile.ZipInfo) -> str:
     if entry.flag_bits & 0x1:
         raise ZipSessionUploadError("encrypted", "加密的 Session 文件不受支持")
     if entry.file_size > SESSION_UPLOAD_MAX_BYTES:
-        raise ZipSessionUploadError("session_too_large", "Session 文件解压后超过 40 KB")
+        raise ZipSessionUploadError("session_too_large", f"Session 文件解压后超过 {SESSION_UPLOAD_LIMIT_TEXT}")
 
     fd, temp_path = tempfile.mkstemp(suffix=".session")
     os.close(fd)
@@ -72,7 +73,7 @@ def extract_zip_session_entry(zip_path: str, entry: zipfile.ZipInfo) -> str:
                     written += len(chunk)
                     if written > SESSION_UPLOAD_MAX_BYTES:
                         raise ZipSessionUploadError(
-                            "session_too_large", "Session 文件解压后超过 40 KB"
+                            "session_too_large", f"Session 文件解压后超过 {SESSION_UPLOAD_LIMIT_TEXT}"
                         )
                     target.write(chunk)
         completed = True
@@ -121,7 +122,10 @@ def render_zip_upload_error(error: ZipSessionUploadError) -> str:
     key = keys.get(error.code)
     if not key:
         return str(error)
-    values = {"count": ZIP_MAX_SESSION_FILES} if error.code == "too_many_sessions" else {}
+    values = {
+        "too_many_sessions": {"count": ZIP_MAX_SESSION_FILES},
+        "session_too_large": {"limit": SESSION_UPLOAD_LIMIT_TEXT},
+    }.get(error.code, {})
     return t(key, **values)
 
 
