@@ -251,12 +251,10 @@ def test_load_user_data_creates_clean_files_and_defaults(isolated_storage):
     assert dm.data_load_succeeded and dm.payment_orders_load_succeeded
 
 
-def test_load_user_data_validates_schema_keys_users_and_legacy_fields(isolated_storage):
+def test_load_user_data_validates_keys_and_users(isolated_storage):
     cases = [
         [],
-        {"schema_version": 99},
         {"schema_version": 1, "1": []},
-        {"schema_version": 1, "1": {"is_vip": True}},
         {"schema_version": 1, "unknown": {}},
     ]
     for index, payload in enumerate(cases):
@@ -292,7 +290,7 @@ def test_backup_data_file_uses_unique_suffix(isolated_storage):
     assert DataManager._backup_data_file() == ""
 
 
-def test_save_user_data_guard_serialization_filter_and_legacy_rejection(isolated_storage):
+def test_save_user_data_guard_serialization_and_filter(isolated_storage):
     dm.data_load_succeeded = False
     assert not DataManager.save_user_data()
     dm.data_load_succeeded = True
@@ -306,9 +304,6 @@ def test_save_user_data_guard_serialization_filter_and_legacy_rejection(isolated
     saved = json.loads(isolated_storage.data_file.read_text(encoding="utf-8"))
     assert saved["7"] == {"language": "en"}
     assert "payment_orders" not in saved and "vip_prices" not in saved
-
-    dm.user_data[7]["vip_expiry"] = "legacy"
-    assert not DataManager.save_user_data()
 
 
 def test_save_user_data_replace_failure_removes_temp(isolated_storage, tmp_path):
@@ -366,24 +361,6 @@ def test_subscription_index_handles_invalid_expired_empty_and_mutation(isolated_
     rebuild.assert_called_once_with()
     dm.subscription_expiry_index = {7: future.timestamp()}
     assert list(DataManager.iter_subscription_users())[0][0] == 7
-
-
-def test_language_initialization_and_selection_rollback_edges(isolated_storage):
-    dm.data_load_succeeded = False
-    assert DataManager.initialize_user_language(1, "en")
-    assert 1 not in dm.user_data
-    dm.data_load_succeeded = True
-    dm.user_data[1] = {"language": "en", "other": 1}
-    with patch.object(DataManager, "save_user_data", return_value=True) as save:
-        assert DataManager.initialize_user_language(1, "zh")
-    save.assert_not_called()
-    assert not DataManager.set_user_language(1, "xx")
-
-    with patch.object(DataManager, "save_user_data", return_value=False):
-        assert not DataManager.initialize_user_language(2, "en")
-        assert 2 not in dm.user_data
-        assert not DataManager.set_user_language(1, "zh")
-    assert dm.user_data[1] == {"language": "en", "other": 1}
 
 
 def test_active_subscription_cache_and_invalid_expiry_edges(isolated_storage):
@@ -677,13 +654,12 @@ def test_load_payment_orders_backup_failure_is_ignored(isolated_storage):
         assert not DataManager.load_payment_orders()
 
 
-def test_save_payment_orders_guards_legacy_and_temp_cleanup(isolated_storage, tmp_path):
+def test_save_payment_orders_guards_and_temp_cleanup(isolated_storage, tmp_path):
     dm.payment_orders_load_succeeded = False
     assert not DataManager.save_payment_orders({})
     dm.payment_orders_load_succeeded = True
     assert DataManager.save_payment_orders(None)
     assert json.loads(isolated_storage.orders_file.read_text(encoding="utf-8"))["orders"] == {}
-    assert not DataManager.save_payment_orders({"old": {"type": "vip_purchase"}})
 
     temp = tmp_path / "orders.tmp"
 

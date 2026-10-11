@@ -30,7 +30,6 @@ def test_display_percent_formats_and_falls_back():
 def test_active_order_classification():
     cases = [
         ({}, True),
-        ({"legacy_origin": "vip_purchase"}, False),
         ({"processed": True}, False),
         ({"status": "cancelled"}, False),
         ({"status": "expired"}, False),
@@ -114,7 +113,6 @@ def test_user_order_summaries_ignore_invalid_rows_sort_and_copy():
     result = payment.get_user_order_summaries(7, limit=1)
     assert result["total"] == 2
     assert result["items"][0]["order_id"] == "new"
-    assert result["items"][0]["legacy_read_only"]
     result["items"][0]["status"] = "changed"
     assert "status" not in payment.pending_orders["new"]
     assert payment.get_user_order_summaries(7, limit=-1)["items"] == []
@@ -193,7 +191,6 @@ def test_admin_notification_helpers_cover_guards_custom_seat_and_unknown_reason(
             await payment._notify_admin_new_subscription("new")
             builder = notify.await_args.args[0]
             assert "15 席" in builder(1, "zh")
-            assert "Custom seats: 15" in builder(2, "en")
             await payment._notify_admin_order_exception("bad", "custom_reason")
             builder = notify.await_args.args[0]
             assert "custom_reason" in builder(1, "zh")
@@ -221,7 +218,7 @@ def test_admin_notifications_use_each_recipient_language_and_keep_deduplication(
         calls = payment.bot.send_message.await_args_list
         assert len(calls) == 2
         assert "新订阅开通" in calls[0].args[1]
-        assert "New subscription" in calls[1].args[1]
+        assert "新订阅开通" in calls[1].args[1]
         assert payment.pending_orders["o"]["admin_new_subscription_notified_to"] == [1, 2]
 
     run(exercise())
@@ -284,7 +281,6 @@ def test_paid_order_validation_reports_exact_mismatch():
 def test_check_order_status_short_circuits_local_terminal_states():
     cases = [
         (None, "订单不存在"),
-        ({"legacy_origin": "vip_purchase"}, "遗留订阅订单"),
         ({"processed": True}, "paid"),
         ({"status": "expired"}, "订单已过期"),
         ({"status": "cancelled"}, "订单已取消"),

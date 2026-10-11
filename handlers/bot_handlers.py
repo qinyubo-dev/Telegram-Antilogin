@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 SUPPORT_USER_ID = 8038400287
 SUPPORT_USERNAME = "QinSupport"
 SUPPORT_CUSTOM_EMOJI_ID = 5891243564309942507
-LANGUAGE_CUSTOM_EMOJI_ID = 5879585266426973039
 
 
 def _language(user_id: int) -> str:
@@ -79,13 +78,6 @@ def support_profile_markup(input_user, include_back: bool = True, language: str 
     return types.ReplyInlineMarkup(
         rows=rows
     )
-
-
-def language_buttons():
-    return [[
-        Button.inline("简体中文", b"language_set_zh", icon=LANGUAGE_CUSTOM_EMOJI_ID),
-        Button.inline("English", b"language_set_en", icon=LANGUAGE_CUSTOM_EMOJI_ID),
-    ]]
 
 
 def main_menu_buttons(user_id: int):
@@ -130,10 +122,6 @@ def more_menu_buttons(user_id: int):
                 t(language, "main.help"), b"show_help",
                 icon=5873121512445187130,
             ),
-            Button.inline(
-                t(language, "language.menu"), b"language_menu",
-                icon=LANGUAGE_CUSTOM_EMOJI_ID,
-            ),
         ],
         [back_button(b"back_to_main", language=language)],
     ]
@@ -147,10 +135,6 @@ async def render_home(bot, event, *, edit: bool):
             "buttons": [
                 [Button.inline(t(language, "access.buy"), b"buy_vip", icon=5956148757899776734)],
                 [Button.inline(t(language, "main.support"), b"customer_support", icon=SUPPORT_CUSTOM_EMOJI_ID)],
-                [Button.inline(
-                    t(language, "language.menu"), b"language_menu",
-                    icon=LANGUAGE_CUSTOM_EMOJI_ID,
-                )],
             ],
             "parse_mode": "md",
         }
@@ -185,12 +169,6 @@ async def resolve_support_user(bot: TelegramClient):
         if entity.id != SUPPORT_USER_ID:
             raise ValueError("客服用户名对应的用户 ID 不匹配")
         return await bot.get_input_entity(entity)
-
-
-async def cancel_user_flow_for_language(user_id: int) -> bool:
-    """Cancel the active user flow before showing or changing language."""
-    result = await cancel_all_user_flows(user_id, reason="language")
-    return result.ok
 
 
 async def cancel_all_user_flows(user_id: int, reason: str, preserve_message=None):
@@ -255,13 +233,6 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
         # A new menu flow supersedes the previous command and menu messages.
         await delete_remembered_main_menu(user_id)
         await delete_remembered_start_command(user_id)
-
-        user = await event.get_sender() if hasattr(event, "get_sender") else None
-        if not DataManager.initialize_user_language(
-            user_id, getattr(user, "lang_code", None)
-        ):
-            await event.respond(t(language, "language.save_failed"))
-            return
 
         if AccountManager.check_access(user_id):
             remember_start_command_message(user_id, event)
@@ -331,46 +302,6 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
             t(language, "support.pointer"),
             buttons=buttons,
         )
-
-    @bot.on(events.NewMessage(pattern=r'^/language(?:@\w+)?$'))
-    async def language_command(event):
-        user_id = event.sender_id
-        if not await cancel_user_flow_for_language(user_id):
-            await event.respond(t(_language(user_id), "start.session_releasing"))
-            raise events.StopPropagation
-        await delete_remembered_main_menu(user_id)
-        clear_state(user_id)
-        language = _language(user_id)
-        await event.respond(
-            t(language, "language.choose"), buttons=language_buttons()
-        )
-        raise events.StopPropagation
-
-    @bot.on(events.CallbackQuery(pattern=b"language_menu"))
-    async def language_menu(event):
-        user_id = event.sender_id
-        await safe_answer_callback(event)
-        if not await cancel_user_flow_for_language(user_id):
-            await safe_edit(
-                event,
-                t(_language(user_id), "start.session_releasing"),
-                buttons=[[back_button(b"back_to_main", user_id=user_id)]],
-            )
-            return
-        clear_state(user_id)
-        language = _language(user_id)
-        await safe_edit(event, t(language, "language.choose"), buttons=language_buttons())
-
-    @bot.on(events.CallbackQuery(pattern=rb"^language_set_(zh|en)$"))
-    async def language_set(event):
-        language = event.data.decode().rsplit("_", 1)[-1]
-        previous = _language(event.sender_id)
-        if not DataManager.set_user_language(event.sender_id, language):
-            await event.answer(t(previous, "language.save_failed"), alert=True)
-            return
-        clear_state(event.sender_id)
-        await event.answer(t(language, "language.saved"))
-        await render_home(bot, event, edit=True)
 
     @bot.on(events.CallbackQuery(pattern=b"back_to_main"))
     async def back_to_main(event):

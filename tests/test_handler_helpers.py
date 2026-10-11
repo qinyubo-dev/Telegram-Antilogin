@@ -159,59 +159,6 @@ def test_transfer_remaining_text_boundaries():
         assert fragment in transfer_handlers._remaining_text(seconds)
 
 
-def test_base36_round_trip():
-    for value in [0, 1, 35, 36, 123456789]:
-        assert transfer_handlers._base36_decode(transfer_handlers._base36_encode(value)) == value
-
-
-def test_inline_transfer_callback_roundtrip_tamper_expiry_and_validation():
-    callback = transfer_handlers.build_inline_transfer_callback(123, "+86 138-0013-8000", 500)
-    parsed, status = transfer_handlers.parse_inline_transfer_callback(callback, now=100)
-    assert status == "ok"
-    assert parsed == (123, "+8613800138000", 500)
-    tampered = callback[:-1] + bytes([callback[-1] ^ 1])
-    assert transfer_handlers.parse_inline_transfer_callback(tampered, now=100)[1] == "invalid"
-    assert transfer_handlers.parse_inline_transfer_callback(callback, now=500)[1] == "expired"
-    assert transfer_handlers.parse_inline_transfer_callback(b"bad", now=1)[1] == "invalid"
-    assert transfer_handlers.parse_inline_transfer_callback(b"itr:0:1:123456:bad", now=1)[1] == "invalid"
-    with pytest.raises(ValueError):
-        transfer_handlers.build_inline_transfer_callback(36**50, "1" * 15, 36**50)
-
-
-def test_inline_phone_normalization():
-    cases = [
-        ("+86 (138) 0013-8000", "+8613800138000"),
-        (" 123 ", ""),
-        ("letters", ""),
-        ("1" * 30, ""),
-        (None, ""),
-    ]
-    for text, expected in cases:
-        assert transfer_handlers._inline_phone_input(text) == expected
-
-
-def test_transfer_thumb_failure_text_and_receiver_name():
-    thumb = transfer_handlers._inline_transfer_thumb()
-    assert thumb.mime_type == "image/jpeg"
-    assert thumb.attributes[0].w == 320
-    messages = {
-        transfer_handlers._inline_source_failure_text(code)
-        for code in ("not_owned", "source_not_vip", "uploaded_session_not_transferable", "too_new", "other")
-    }
-    assert len(messages) == 5
-    assert transfer_handlers._receiver_display_name(
-        SimpleNamespace(first_name=" Ada ", last_name=" Lovelace "), 7
-    ) == "AdaLovelace"
-    assert transfer_handlers._receiver_display_name(SimpleNamespace(), 7) == "7"
-
-
-def test_expire_inline_transfer_card_alert_survives_edit_failure(event_factory):
-    event = event_factory(sender_id=1)
-    with patch("handlers.transfer_handlers.safe_edit", new=AsyncMock(side_effect=RuntimeError)):
-        run(transfer_handlers._expire_inline_transfer_card(event, "expired"))
-    event.answer.assert_awaited_once()
-
-
 def test_clear_transfer_and_hosting_states():
     handler_utils.set_state(
         10,
@@ -287,20 +234,19 @@ def test_bot_menu_helpers_admin_and_user_layout():
     )
     assert more_entry.style.icon == 5884123981706956210
     assert {
-        b"reload_user_accounts", b"customer_support", b"show_help", b"language_menu"
+        b"reload_user_accounts", b"customer_support", b"show_help"
     }.isdisjoint(regular_data)
     with patch("handlers.bot_handlers.DataManager.get_user_language", return_value="en"):
         more = bot_handlers.more_menu_buttons(1)
     assert len(more) == 3
     assert {
-        b"reload_user_accounts", b"customer_support", b"show_help", b"language_menu"
+        b"reload_user_accounts", b"customer_support", b"show_help"
     } == {button.data for row in more[:-1] for button in row}
     with patch("handlers.bot_handlers.DataManager.get_user_language", return_value="zh"), patch(
         "handlers.bot_handlers.DataManager.is_admin", return_value=True
     ):
         admin = bot_handlers.main_menu_buttons(1)
     assert len(admin) == 5 and admin[-1][0].data == b"admin_panel"
-    assert len(bot_handlers.language_buttons()[0]) == 2
     markup = bot_handlers.support_profile_markup("input", include_back=True, language="en")
     assert len(markup.rows) == 2
     assert len(bot_handlers.support_profile_markup("input", include_back=False).rows) == 1
@@ -355,25 +301,6 @@ def test_resolve_support_user_direct_fallback_and_mismatch():
     bot.get_entity = AsyncMock(return_value=SimpleNamespace(id=1))
     with pytest.raises(ValueError):
         run(bot_handlers.resolve_support_user(bot))
-
-
-def test_cancel_language_flow_and_login():
-    with patch(
-        "handlers.bot_handlers.cancel_login_unlock_flow", new=AsyncMock()
-    ), patch(
-        "handlers.bot_handlers.cancel_pending_login_flow",
-        new=AsyncMock(return_value=SimpleNamespace(ok=True)),
-    ), patch(
-        "handlers.bot_handlers.delete_remembered_flow_messages", new=AsyncMock()
-    ):
-        assert run(bot_handlers.cancel_user_flow_for_language(1))
-    with patch(
-        "handlers.bot_handlers.cancel_login_unlock_flow", new=AsyncMock()
-    ), patch(
-        "handlers.bot_handlers.cancel_pending_login_flow",
-        new=AsyncMock(return_value=SimpleNamespace(ok=False)),
-    ):
-        assert not run(bot_handlers.cancel_user_flow_for_language(1))
 
 
 def test_cancel_all_user_flows_preserves_message_and_skips_ui_on_critical_failure():

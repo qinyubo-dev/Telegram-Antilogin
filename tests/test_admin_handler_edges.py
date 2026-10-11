@@ -80,12 +80,6 @@ def test_config_flow_helpers():
         if target != "discounts":
             assert admin_handlers._config_plan_text(catalog(), target)
 
-    english_flow = {
-        "target": "go", "before": catalog(), "values": {"price": "2"}, "index": 0,
-    }
-    assert "Edit GO" in admin_handlers._config_flow_prompt(english_flow, language="en")
-    assert "Before" in admin_handlers._config_flow_preview(english_flow, language="en")
-
 
 def test_display_name_cache_entity_and_failure():
     bot = SimpleNamespace(get_entity=AsyncMock(return_value=SimpleNamespace(first_name="A", last_name="B", username="ab")))
@@ -123,7 +117,6 @@ def test_admin_action_queue_replace_expire_and_buttons():
 
 def test_order_status_and_timestamp():
     cases = [
-        ({"legacy_read_only": True}, "遗留"),
         ({"processed": True}, "已完成"),
         ({"needs_manual_review": True}, "待处理"),
         ({"status": "pending"}, "待支付"),
@@ -134,24 +127,7 @@ def test_order_status_and_timestamp():
     for order, text in cases:
         assert text in admin_handlers._order_status_text(order)
     assert admin_handlers._format_timestamp("bad") == "未知"
-    assert admin_handlers._format_timestamp("bad", "en") == "Unknown"
-    assert admin_handlers._order_status_text({"status": "pending"}, "en") == "⏳ Awaiting payment"
     assert admin_handlers._format_timestamp(0).startswith("1970")
-
-
-def test_audit_display_is_localized_without_mutating_raw_entries():
-    entries = [{
-        "timestamp": "2026-01-01", "admin_id": 1, "action": "order.recheck",
-        "target_type": "order", "target_id": "o1", "result": "failed",
-        "before": {"status": "pending"}, "after": None, "metadata": {},
-        "error": "fulfillment_failed",
-    }]
-    before = __import__("copy").deepcopy(entries)
-    text = admin_handlers._format_audit_entries(entries, "en")
-    assert "Audit details" in text
-    assert "Check order again" in text
-    assert "Payment was confirmed, but fulfillment failed." in text
-    assert entries == before
 
 
 def test_known_users_and_resumable_count():
@@ -227,25 +203,6 @@ def test_handle_order_search_and_audit_filter(event_factory):
     assert filters["admin_id"] == "1"
     assert filters["action"] == "order.recheck"
     assert filters["target_id"] == "2"
-
-
-def test_parse_audit_filters_accepts_localized_actions_and_legacy_codes():
-    assert admin_handlers._parse_audit_filters("重新查单", "zh")["action"] == "order.recheck"
-    assert admin_handlers._parse_audit_filters(
-        "action:Retry fulfillment admin:7", "en"
-    ) == {
-        "exclude_attempt": True,
-        "action": "order.retry_fulfillment",
-        "admin_id": "7",
-    }
-    assert admin_handlers._parse_audit_filters(
-        "admin:7 action:order.detail target:o-1", "zh"
-    ) == {
-        "exclude_attempt": True,
-        "admin_id": "7",
-        "action": "order.detail",
-        "target_id": "o-1",
-    }
 
 
 def test_handle_config_flow_expired_invalid_and_preview(event_factory):

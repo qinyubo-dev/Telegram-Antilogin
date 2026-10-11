@@ -3798,194 +3798,6 @@ class AccountManager:
         return AccountTransferResult(True, "success", message, phone, from_user_id, to_user_id, target_notified=target_notified)
 
     @staticmethod
-    async def _transfer_account_legacy_unlocked(
-        from_user_id: int,
-        phone_input: str,
-        to_user_id: int,
-        notify_target: bool = True,
-    ) -> AccountTransferResult:
-        """Transfer one hosted account between VIP users with rollback on failure."""
-        initial = AccountManager.validate_account_transfer(
-            from_user_id, phone_input, to_user_id
-        )
-        if not initial.ok:
-            return initial
-
-        digits = AccountManager._digits_only(phone_input)
-        phone = f"+{digits}"
-        source_lock_key = f"{from_user_id}_{phone}"
-        target_lock_key = f"{to_user_id}_{phone}"
-        lock_keys = sorted({source_lock_key, target_lock_key})
-
-        async with AsyncExitStack() as stack:
-            for lock_key in lock_keys:
-                await stack.enter_async_context(AccountManager._get_session_lock(lock_key))
-
-            checked = AccountManager.validate_account_transfer(
-                from_user_id, phone, to_user_id
-            )
-            if not checked.ok:
-                return checked
-
-            from_accounts = user_accounts.get(from_user_id, {})
-            from_phone_key = AccountManager._find_account_key_by_digits(from_accounts, digits)
-            source_info = dict(from_accounts.get(from_phone_key, {}))
-            source_client = source_info.get("client")
-            anti_login = bool(source_info.get("anti_login", True))
-            source_created_at = AccountManager.get_hosted_account_created_at(
-                from_user_id, from_phone_key
-            )
-            source_origin = AccountManager.get_hosted_account_source(
-                from_user_id, from_phone_key
-            )
-            source_path = source_info.get("original_session_path")
-            if not source_path:
-                source_file = source_info.get("session_file") or f"{from_user_id}_{digits}.session"
-                source_path = os.path.join(SESSIONS_DIR, source_file)
-            target_path = os.path.join(SESSIONS_DIR, f"{to_user_id}_{digits}.session")
-            if not any(os.path.exists(path) for path in session_related_paths(source_path)):
-                return AccountTransferResult(
-                    False, "source_session_missing", "❌ 未找到该账户的session文件",
-                    phone, from_user_id, to_user_id
-                )
-
-            await AccountManager._cancel_client_task(source_lock_key)
-            await AccountManager._cancel_account_auxiliary_tasks(from_user_id, from_phone_key)
-            if source_client:
-                disconnected = await AccountManager._safe_disconnect_client(
-                    source_client,
-                    f"transfer-old:{from_user_id}:{from_phone_key}",
-                    timeout=10,
-                )
-                if not disconnected:
-                    try:
-                        if source_client.is_connected():
-                            AccountManager._start_connection_watcher_task(
-                                from_user_id, from_phone_key, source_client
-                            )
-                    except Exception:
-                        logger.exception("转让中止后恢复连接监听失败")
-                    return AccountTransferResult(
-                        False,
-                        "source_disconnect_failed",
-                        "❌ 当前托管会话正在使用中，请稍后重试",
-                        phone,
-                        from_user_id,
-                        to_user_id,
-                    )
-            from_accounts.pop(from_phone_key, None)
-
-            session_moved = False
-            try:
-                AccountManager._move_session_files(source_path, target_path)
-                session_moved = True
-            except Exception:
-                logger.exception("转让账户时移动 session 失败")
-                rollback_ok = True
-                if session_moved:
-                    rollback_ok = AccountManager._rollback_transfer_files(
-                        source_path,
-                        target_path,
-                    )
-                restored = await AccountManager._restore_transfer_source(
-                    source_path, from_user_id, phone, anti_login
-                ) if rollback_ok else False
-                message = (
-                    "❌ 转让失败，账户已恢复"
-                    if restored
-                    else "❌ 转让失败，文件回滚或原账户恢复失败，请联系管理员"
-                )
-                return AccountTransferResult(
-                    False, "move_failed", message, phone, from_user_id, to_user_id
-                )
-
-            try:
-                _, loaded_phone, success, failure_reason = await AccountManager.create_client_from_session(
-                    target_path, to_user_id, detailed=True
-                )
-            except Exception as error:
-                logger.exception("转让后加载目标账户异常")
-                success = False
-                failure_reason = type(error).__name__
-                loaded_phone = None
-
-            if not success:
-                user_accounts.get(to_user_id, {}).pop(loaded_phone or phone, None)
-                rollback_ok = AccountManager._rollback_transfer_files(
-                    source_path,
-                    target_path,
-                )
-                if not rollback_ok:
-                    return AccountTransferResult(
-                        False,
-                        "rollback_failed",
-                        "❌ 转让失败且 session 回滚失败，请立即联系管理员",
-                        phone,
-                        from_user_id,
-                        to_user_id,
-                    )
-                AccountManager.remove_hosted_account_metadata(to_user_id, phone)
-                AccountManager.set_hosted_account_created_at(
-                    from_user_id, phone, source_created_at or time.time()
-                )
-                restored = await AccountManager._restore_transfer_source(
-                    source_path, from_user_id, phone, anti_login
-                )
-                message = (
-                    "❌ 转让失败，账户已恢复"
-                    if restored
-                    else "❌ 转让失败，原账户恢复失败，请联系管理员"
-                )
-                logger.warning(
-                    f"目标账户加载失败并回滚: 手机号={phone}, 原因={failure_reason}"
-                )
-                return AccountTransferResult(
-                    False, "target_load_failed", message, phone, from_user_id, to_user_id
-                )
-
-            AccountManager.remove_hosted_account_metadata(from_user_id, phone)
-            new_created_at = transfer_recipient_created_at(source_created_at)
-            transferred_at = time.time()
-            AccountManager.set_hosted_account_created_at(to_user_id, phone, new_created_at)
-            AccountManager.set_hosted_account_source(to_user_id, phone, source_origin)
-            AccountManager.set_hosted_account_last_transferred_at(
-                to_user_id, phone, transferred_at
-            )
-            target_info = user_accounts.get(to_user_id, {}).get(loaded_phone or phone)
-            if target_info is not None:
-                target_info["created_at"] = new_created_at
-                target_info["source"] = source_origin
-                target_info["last_transferred_at"] = transferred_at
-
-        target_notified = False
-        bot = account_runtime.get_notify_bot()
-        if bot and notify_target:
-            target_notified = await AccountManager._safe_send_bot_message(
-                bot,
-                to_user_id,
-                t(DataManager.get_user_language(to_user_id), "notify.transfer_received",
-                  phone=phone, source=from_user_id),
-                context=f"account_transfer_target:{phone}",
-            )
-
-        message = t(DataManager.get_user_language(from_user_id), "transfer.success",
-                    phone=phone, target=to_user_id)
-        if not target_notified:
-            message += "\n\n" + t(
-                DataManager.get_user_language(from_user_id),
-                "transfer.notify_failed",
-            )
-        return AccountTransferResult(
-            True,
-            "success",
-            message,
-            phone,
-            from_user_id,
-            to_user_id,
-            target_notified=target_notified,
-        )
-    
-    @staticmethod
     def get_user_accounts(user_id: int) -> Dict[str, Dict]:
         """获取用户账户，检查权限"""
         if not AccountManager.check_access(user_id):
@@ -5392,7 +5204,6 @@ class AccountManager:
                     return reminder_system.render_schedule_result(
                         reminder_result,
                         DataManager.get_user_language(user_id),
-                        DataManager.get_user_timezone(user_id),
                     )
                 return t(language, "auth.rate_limited", seconds=wait_time)
             except Exception as e:
@@ -5442,9 +5253,7 @@ class AccountManager:
             result = await reminder_system.schedule(
                 user_id, normalized_phone, max(1, int(error.seconds))
             )
-            return reminder_system.render_schedule_result(
-                result, language, DataManager.get_user_timezone(user_id)
-            )
+            return reminder_system.render_schedule_result(result, language)
         except Exception as error:
             logger.warning(
                 "手动检测登录限制失败: 用户ID=%s, 手机号=%s, 错误类型=%s",

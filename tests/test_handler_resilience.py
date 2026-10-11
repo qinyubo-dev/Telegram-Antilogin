@@ -897,9 +897,6 @@ class QrMessageDeletionTests(unittest.IsolatedAsyncioTestCase):
             ), patch(
                 "handlers.bot_handlers.AccountManager.cleanup_stale_pending_sessions"
             ), patch(
-                "handlers.bot_handlers.DataManager.initialize_user_language",
-                return_value=True,
-            ), patch(
                 "handlers.bot_handlers.AccountManager.check_access", return_value=True
             ), patch(
                 "handlers.bot_handlers.delete_remembered_start_command",

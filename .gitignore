@@ -28,3 +28,4 @@ logs/
 # Runtime metadata
 storage/*.json
 storage/*.jsonl
+dist/

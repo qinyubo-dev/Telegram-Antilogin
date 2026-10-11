@@ -223,10 +223,6 @@ def test_main_startup_and_shutdown(tmp_path, monkeypatch):
     payment = SimpleNamespace(set_bot=Mock(), start_monitoring=AsyncMock())
     reminder = SimpleNamespace(start_monitoring=AsyncMock())
     cleanup = AsyncMock()
-    monkeypatch.setattr(
-        bot_main.DataManager, "get_user_language",
-        staticmethod(lambda admin_id: "zh" if admin_id == 1 else "en"),
-    )
     with patch.object(bot_main.config, "SESSIONS_DIR", str(tmp_path)), patch.object(
         bot_main.config, "BOT_SESSION_PATH", str(tmp_path / "bot.session"), create=True
     ), patch.object(bot_main.config, "ADMIN_IDS", [1, 2], create=True), patch.object(
@@ -256,5 +252,5 @@ def test_main_startup_and_shutdown(tmp_path, monkeypatch):
     reminder.start_monitoring.assert_awaited_once()
     assert bot.send_message.await_count == 2
     assert "系统已完成初始化" in bot.send_message.await_args_list[0].args[1]
-    assert "initialization complete" in bot.send_message.await_args_list[1].args[1]
+    assert "系统已完成初始化" in bot.send_message.await_args_list[1].args[1]
     bot_main.subscription_task = None

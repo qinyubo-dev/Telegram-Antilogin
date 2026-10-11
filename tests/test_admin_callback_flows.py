@@ -85,56 +85,6 @@ def test_admin_panel_denied_and_success(handler_bot, event_factory):
     edit.assert_awaited_once()
 
 
-def test_admin_panel_renders_english_from_saved_language(handler_bot, event_factory):
-    bot, _ = register(handler_bot)
-    event = event_factory(data=b"admin_panel")
-    with patch("handlers.admin_handlers.DataManager.is_admin", return_value=True), patch(
-        "handlers.admin_handlers.DataManager.get_user_language", return_value="en"
-    ), patch("handlers.admin_handlers.DataManager.get_all_subscription_users", return_value=[]), patch(
-        "handlers.admin_handlers.edit_or_respond", new=AsyncMock()
-    ) as edit:
-        run(bot.find("admin_panel")(event))
-    assert "Admin Console" in edit.await_args.args[1]
-    labels = [button.text for row in edit.await_args.kwargs["buttons"] for button in row]
-    assert "Orders" in labels
-    assert "Back" in labels
-
-
-def test_admin_prompts_reports_and_commands_render_english(handler_bot, event_factory):
-    bot, _ = register(handler_bot)
-    with patch("handlers.admin_handlers.require_admin", new=AsyncMock(return_value=True)), patch(
-        "handlers.admin_handlers.DataManager.get_user_language", return_value="en"
-    ), patch("handlers.admin_handlers.safe_edit", new=AsyncMock()) as edit:
-        run(bot.find("admin_report")(event_factory(data=b"admin_report_7")))
-        run(bot.find("admin_order_search")(event_factory(data=b"admin_order_search")))
-        run(bot.find("admin_user_search")(event_factory(data=b"admin_user_search")))
-        run(bot.find("admin_subscription_grant_help")(
-            event_factory(data=b"admin_subscription_grant_help")
-        ))
-        run(bot.find("admin_subscription_delete_help")(
-            event_factory(data=b"admin_subscription_delete_help")
-        ))
-    texts = [call.args[1] for call in edit.await_args_list]
-    assert any("Operations · Last 7 days" in text for text in texts)
-    assert any("Search orders" in text for text in texts)
-    assert any("Global user search" in text for text in texts)
-    assert any("Grant subscription" in text for text in texts)
-    assert any("Delete subscription" in text for text in texts)
-
-    for command, handler_name, expected in (
-        ("/sub", "sub_command", "Format: /sub user_id"),
-        ("/delsub", "delsub_command", "Format: /delsub user_id"),
-    ):
-        event = event_factory(text=command)
-        with patch("handlers.admin_handlers.require_admin", new=AsyncMock(return_value=True)), patch(
-            "handlers.admin_handlers.DataManager.get_user_language", return_value="en"
-        ), patch("handlers.admin_handlers.AdminAuditLog.record_attempt", return_value="audit"), patch(
-            "handlers.admin_handlers._audit_result", return_value=True
-        ):
-            run(bot.find(handler_name)(event))
-        assert expected in event.respond.await_args.args[0]
-
-
 def test_admin_report(handler_bot, event_factory):
     days = 30
     bot, _ = register(handler_bot)
@@ -450,12 +400,12 @@ def test_audit_callbacks(handler_bot, event_factory, tmp_path):
     }]
     detail = event_factory(data=b"admin_audit_detail_abc")
     with common_patches()[0], patch(
-        "handlers.admin_handlers.DataManager.get_user_language", return_value="en"
-    ), patch("handlers.admin_handlers.AdminAuditLog.get_by_audit_id", return_value=entries), patch(
+        "handlers.admin_handlers.AdminAuditLog.get_by_audit_id", return_value=entries
+    ), patch(
         "handlers.admin_handlers.safe_edit", new=AsyncMock()
     ) as edit:
         run(bot.find("admin_audit_detail")(detail))
-    assert "Audit details" in edit.await_args.args[1]
+    assert "审计详情" in edit.await_args.args[1]
 
 
 def config_catalog():

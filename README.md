@@ -142,16 +142,11 @@ sudo chmod 0600 /root/anti-login-*.tar.gz
 
 ```bash
 NEW_DIR=/opt/anti-login/releases/v1.1.0
-sudo -u anti-login env ANTI_LOGIN_DATA_ROOT=/var/lib/anti-login \
-  "$NEW_DIR/.venv/bin/python" "$NEW_DIR/migrate_runtime_data.py" --check
-sudo -u anti-login env ANTI_LOGIN_DATA_ROOT=/var/lib/anti-login \
-  "$NEW_DIR/.venv/bin/python" "$NEW_DIR/migrate_runtime_data.py" --apply
 sudo ln -sfn "$NEW_DIR" /opt/anti-login/current
 sudo systemctl start anti-login
 ```
 
-如果启动失败，停止服务，把 `current` 指回旧版本；如果已迁移数据，同时恢复升级前
-备份。
+如果启动失败，停止服务，把 `current` 指回旧版本，必要时恢复升级前备份。
 
 ## 常见问题
 
@@ -177,9 +172,6 @@ python -m venv .venv
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
-
-贡献要求见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全报告见
-[SECURITY.md](SECURITY.md)。
 
 ## 许可证
 

@@ -101,16 +101,6 @@ def test_startup_prunes_expired_history(rate_storage):
     assert DataManager.get_login_code_request_timestamps(1) == [4_999.0]
 
 
-def test_rate_messages_are_bilingual_and_include_rule(rate_storage):
-    limiter = LoginCodeRequestRateLimiter()
-    assert limiter.acquire(1, now=6_000).allowed
-    result = limiter.check(1, now=6_001)
-    zh = render_login_code_rate_limit(result, "zh")
-    en = render_login_code_rate_limit(result, "en")
-    assert "14 秒" in zh and "滚动 60 分钟 最多 15 次" in zh
-    assert "14 seconds" in en and "15 requests per rolling 60 minutes" in en
-
-
 @pytest.mark.parametrize(
     "error",
     [FloodWaitError(None, capture=30), ConnectionError("offline")],

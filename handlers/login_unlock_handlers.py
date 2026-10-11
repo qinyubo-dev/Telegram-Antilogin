@@ -35,8 +35,6 @@ from reminders.login_unlock_reminder import (
 )
 from storage.data_manager import DataManager
 from user_timezones import (
-    TIMEZONE_BY_CALLBACK,
-    TIMEZONE_CHOICES,
     timezone_text,
 )
 
@@ -87,16 +85,11 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
             return
         records = await system.list_records(user_id)
         quota = system.quota_status(user_id)
-        timezone_name = DataManager.get_user_timezone(user_id)
         buttons = [[
             Button.inline(
                 t(language, "login_unlock.manual_add"),
                 b"login_unlock_add",
                 icon=LOGIN_UNLOCK_ADD_CUSTOM_EMOJI_ID,
-            ),
-            Button.inline(
-                t(language, "login_unlock.timezone_button"),
-                b"login_unlock_timezone",
             ),
         ]]
         for record in records:
@@ -119,7 +112,6 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
             "login_unlock.menu",
             used=quota["used"],
             limit=format_limit(quota["limit"], language),
-            timezone=timezone_name,
             items=(
                 t(language, "login_unlock.choose_account")
                 if records else t(language, "login_unlock.empty")
@@ -170,7 +162,6 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
             await render_menu(event, answer=False)
             return
 
-        timezone_name = DataManager.get_user_timezone(user_id)
         reminder_lines = [
             t(
                 language,
@@ -184,7 +175,7 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
             language,
             "login_unlock.list_item",
             phone=record.get("phone", ""),
-            unlock=timezone_text(unlock_at, timezone_name),
+            unlock=timezone_text(unlock_at),
             nodes="\n".join(reminder_lines),
         )
         await event.answer()
@@ -195,49 +186,6 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
             )],
             [back_button(b"login_unlock_menu", language=language)],
         ])
-
-    @bot.on(events.CallbackQuery(pattern=rb"^login_unlock_timezone$"))
-    async def login_unlock_timezone(event):
-        if not await require_access(event, alert=True):
-            return
-        language = _language(event.sender_id)
-        selected = DataManager.get_user_timezone(event.sender_id)
-        timezone_buttons = []
-        for callback, timezone_name in TIMEZONE_CHOICES:
-            label = timezone_name
-            if timezone_name == selected:
-                label = t(language, "login_unlock.timezone_selected", timezone=label)
-            timezone_buttons.append(Button.inline(
-                label, f"login_unlock_timezone_set_{callback}".encode()
-            ))
-        buttons = [
-            timezone_buttons[index:index + 2]
-            for index in range(0, len(timezone_buttons), 2)
-        ]
-        buttons.append([back_button(b"login_unlock_menu", language=language)])
-        await event.answer()
-        await safe_edit(
-            event,
-            t(
-                language,
-                "login_unlock.timezone_menu",
-                timezone=selected,
-            ),
-            buttons=buttons,
-        )
-
-    @bot.on(events.CallbackQuery(pattern=rb"^login_unlock_timezone_set_[a-z_]+$"))
-    async def login_unlock_timezone_set(event):
-        language = _language(event.sender_id)
-        callback = event.data.decode().removeprefix("login_unlock_timezone_set_")
-        timezone_name = TIMEZONE_BY_CALLBACK.get(callback)
-        if timezone_name is None or not DataManager.set_user_timezone(
-            event.sender_id, timezone_name
-        ):
-            await event.answer(t(language, "login_unlock.timezone_save_failed"), alert=True)
-            return
-        await event.answer(t(language, "login_unlock.timezone_saved"))
-        await render_menu(event, answer=False)
 
     @bot.on(events.CallbackQuery(pattern=b"login_unlock_add"))
     async def login_unlock_add(event):

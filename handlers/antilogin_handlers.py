@@ -180,10 +180,9 @@ async def setup_antilogin_handlers(bot: TelegramClient):
 
         language = _language(user_id)
         result_message = result.get("message") or t(language, "protection.processed")
-        for prompt_suffix in (t("zh", "device.choose"), t("en", "device.choose")):
-            if original_text.endswith(prompt_suffix):
-                original_text = original_text[: -len(prompt_suffix)].rstrip()
-                break
+        prompt_suffix = t(language, "device.choose")
+        if original_text.endswith(prompt_suffix):
+            original_text = original_text[: -len(prompt_suffix)].rstrip()
         await event.answer(result_message)
         await safe_edit(
             event,

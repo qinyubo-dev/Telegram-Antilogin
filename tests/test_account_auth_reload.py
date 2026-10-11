@@ -77,30 +77,6 @@ def test_authenticate_authorized_code_and_failures():
         assert "connect" in run(AccountManager.authenticate(client, "+5", 5))
 
 
-def test_authentication_results_use_stable_english_messages():
-    pending = client_stub()
-    with patch.object(DataManager, "get_user_language", return_value="en"):
-        result = run(AccountManager.authenticate(pending, "+2", 2))
-    assert result.startswith("📱 Login code sent")
-    assert "5 minutes" in result
-
-    flood = FloodWaitError(None, capture=7)
-    client = client_stub(send_code_request=AsyncMock(side_effect=flood))
-    with patch.object(DataManager, "get_user_language", return_value="en"), patch.object(
-        module.account_runtime, "get_login_unlock_reminder_system", return_value=None
-    ), patch.object(AccountManager, "cleanup_incomplete_account", new=AsyncMock()):
-        limited = run(AccountManager.authenticate(client, "+3", 3))
-    assert "7 seconds" in limited
-    assert "请求过于频繁" not in limited
-
-    state = code_state(8)
-    state["auth_client"].sign_in.side_effect = PhoneCodeInvalidError(None)
-    with patch.object(DataManager, "get_user_language", return_value="en"):
-        invalid = run(AccountManager.handle_code(8, "1234"))
-    assert "invalid" in invalid.lower()
-    assert "Attempts remaining: 4" in invalid
-
-
 def code_state(user_id=1, **updates):
     state = {
         "waiting_code": True,

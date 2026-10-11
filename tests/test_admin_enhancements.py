@@ -142,32 +142,6 @@ class AdminOrderQueryTests(unittest.TestCase):
         snapshot["status"] = "changed"
         self.assertEqual(self.payment.pending_orders["active"]["status"], "pending")
 
-    def test_legacy_vip_orders_are_read_only_closed_or_completed(self):
-        now = time.time()
-        self.payment.pending_orders.update({
-            "legacy-open": {
-                "type": "subscription_purchase", "legacy_origin": "vip_purchase",
-                "status": "paid", "processed": False,
-                "created_time": now,
-            },
-            "legacy-done": {
-                "type": "subscription_purchase", "legacy_origin": "vip_purchase",
-                "status": "paid", "processed": True,
-                "created_time": now,
-            },
-        })
-        self.assertNotIn(
-            "legacy-open",
-            {item["order_id"] for item in self.payment.list_admin_orders("review")["items"]},
-        )
-        closed = self.payment.list_admin_orders("closed")["items"]
-        self.assertTrue(next(item for item in closed if item["order_id"] == "legacy-open")["legacy_read_only"])
-        self.assertIn(
-            "legacy-done",
-            {item["order_id"] for item in self.payment.list_admin_orders("completed")["items"]},
-        )
-
-
 class AdminReportTests(unittest.TestCase):
     def setUp(self):
         self.payment = PaymentSystem()
@@ -199,11 +173,6 @@ class AdminReportTests(unittest.TestCase):
             "pending": {
                 "type": "subscription_purchase", "user_id": 5, "status": "pending",
                 "processed": False, "fulfilled_time": today, "amount": "99", "coin": "USDT",
-            },
-            "legacy": {
-                "type": "subscription_purchase", "legacy_origin": "vip_purchase",
-                "user_id": 6, "status": "paid",
-                "processed": True, "fulfilled_time": today, "amount": "99", "coin": "USDT",
             },
             "test": {
                 "type": "payment_test", "user_id": 7, "status": "paid",

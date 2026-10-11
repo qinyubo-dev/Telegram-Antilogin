@@ -32,21 +32,19 @@ def _percent_text(value) -> str:
 
 def _order_billing_text(order: dict, language="zh") -> str:
     period_days = int(order.get('period_days', 30))
-    if language == "zh":
-        discount_line = ""
-        if period_days > 30 and Decimal(str(order.get('actual_discount_percent', '0'))) > 0:
-            discount_line = (
-                f"│ 标准原价  ·  {order.get('list_price', order['amount'])} USDT\n"
-                f"│ 周期礼遇  ·  实际节省 {_percent_text(order.get('actual_discount_percent', '0'))}%\n"
-            )
-        return (
-            "╭─ ✦ 尊享账单\n"
-            f"│ 服务周期  ·  {period_days} 天\n"
-            f"{discount_line}"
-            f"│ 应付金额  ·  {order['amount']} USDT\n"
-            "╰─ 权益将在支付确认后自动生效"
+    discount_line = ""
+    if period_days > 30 and Decimal(str(order.get('actual_discount_percent', '0'))) > 0:
+        discount_line = (
+            f"│ 标准原价  ·  {order.get('list_price', order['amount'])} USDT\n"
+            f"│ 周期礼遇  ·  实际节省 {_percent_text(order.get('actual_discount_percent', '0'))}%\n"
         )
-    return t(language, "plans.billing_standard", days=period_days, amount=order['amount'])
+    return (
+        "╭─ ✦ 尊享账单\n"
+        f"│ 服务周期  ·  {period_days} 天\n"
+        f"{discount_line}"
+        f"│ 应付金额  ·  {order['amount']} USDT\n"
+        "╰─ 权益将在支付确认后自动生效"
+    )
 
 
 def _catalog_text(language="zh") -> str:

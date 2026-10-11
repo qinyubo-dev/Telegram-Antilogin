@@ -128,16 +128,13 @@ def _audit_action_code(value, language: str) -> str:
     for action in _AUDIT_ACTION_CODES:
         if folded == action.casefold():
             return action
-        for candidate_language in dict.fromkeys((language, "zh", "en")):
-            if folded == _localized_code(
-                candidate_language, "admin.audit.action", action
-            ).casefold():
-                return action
+        if folded == _localized_code(language, "admin.audit.action", action).casefold():
+            return action
     return raw
 
 
 def _parse_audit_filters(value, language: str) -> dict:
-    """Parse localized audit filters while preserving legacy English syntax."""
+    """Parse audit filters entered by an administrator."""
     text = str(value or "").strip()
     filters = {"exclude_attempt": True}
     field_pattern = "|".join(
@@ -285,7 +282,7 @@ def _config_flow_preview(flow, language="zh"):
     candidate = _config_flow_candidate(flow)
     if flow["target"] == "discounts":
         def discount_text(periods):
-            return ("，" if language == "zh" else ", ").join(
+            return "，".join(
                 t(
                     language, "admin.config.discount_item", days=days,
                     percent=periods[days]["discount_percent"],
@@ -717,8 +714,6 @@ def _format_timestamp(value, language="zh"):
 
 
 def _order_status_text(order, language="zh"):
-    if order.get("legacy_read_only") or order.get("legacy_origin") == "vip_purchase":
-        return t(language, "admin.order.status.legacy")
     if order.get("processed"):
         return t(language, "admin.order.status.completed")
     if order.get("needs_manual_review") or order.get("status") == "paid":
@@ -1034,9 +1029,6 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             verified=_format_timestamp(order.get("verified_time"), language),
             fulfilled=_format_timestamp(order.get("fulfilled_time"), language),
         )]
-        legacy_read_only = order.get("legacy_origin") == "vip_purchase"
-        if legacy_read_only:
-            lines.extend(["", t(language, "admin.order.legacy_notice")])
         reason = order.get("manual_review_reason") or order.get("payment_validation_error")
         if reason:
             lines.extend(["", t(
@@ -1047,11 +1039,11 @@ async def setup_admin_handlers(bot: TelegramClient, payment_system: PaymentSyste
             lines.append(t(language, "admin.order.retry_failures", count=int(retry.get("failures", 0))))
             lines.append(t(language, "admin.order.next_check", time=_format_timestamp(retry.get("next_check_at"), language)))
         buttons = []
-        if not legacy_read_only and not order.get("processed") and order.get("status", "pending") == "pending":
+        if not order.get("processed") and order.get("status", "pending") == "pending":
             callback = f"admin_order_check_{order_id}".encode()
             if len(callback) <= 64:
                 buttons.append([Button.inline(t(language, "admin.order.recheck"), callback)])
-        if not legacy_read_only and not order.get("processed") and order.get("status") == "paid":
+        if not order.get("processed") and order.get("status") == "paid":
             callback = f"admin_order_retry_{order_id}".encode()
             confirm_callback = f"admin_order_retry_confirm_{order_id}".encode()
             if len(callback) <= 64 and len(confirm_callback) <= 64:

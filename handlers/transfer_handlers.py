@@ -1,17 +1,13 @@
 # Copyright (c) 2026 秦屿泊 (@qinyubo)
 # SPDX-License-Identifier: MIT
 
-import base64
-import hashlib
-import hmac
 import math
 import re
 import time
 
-from telethon import TelegramClient, events, types
+from telethon import TelegramClient, events
 from telethon.tl.custom import Button
 
-import settings as config
 from accounts.account_manager import AccountManager
 from accounts.account_runtime import user_accounts
 from handlers.handler_utils import (
@@ -31,10 +27,6 @@ from localization import localized_result, t
 
 
 TRANSFER_CUSTOM_EMOJI_ID = 5807499888245612254
-INLINE_TRANSFER_MESSAGE_CUSTOM_EMOJI_ID = 5875465628285931233
-INLINE_TRANSFER_TTL_SECONDS = 24 * 60 * 60
-INLINE_TRANSFER_CALLBACK_PREFIX = "itr"
-INLINE_TRANSFER_THUMB_URL = "https://i.postimg.cc/RVSJZwpR/download.jpg"
 TRANSFER_STATE_TTL_SECONDS = 10 * 60
 TRANSFER_STATE_KEYS = (
     "waiting_account_transfer_target",
@@ -57,97 +49,6 @@ def _remaining_text(seconds: int, language="zh") -> str:
     if hours:
         return t(language, "transfer.remaining_hours", hours=hours)
     return t(language, "transfer.remaining_minutes", minutes=minutes)
-
-
-def _base36_encode(value: int) -> str:
-    alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
-    value = int(value)
-    if value == 0:
-        return "0"
-    encoded = ""
-    while value:
-        value, remainder = divmod(value, 36)
-        encoded = alphabet[remainder] + encoded
-    return encoded
-
-
-def _base36_decode(value: str) -> int:
-    return int(value, 36)
-
-
-def _inline_transfer_signature(payload: str) -> str:
-    digest = hmac.new(
-        config.BOT_TOKEN.encode("utf-8"),
-        payload.encode("ascii"),
-        hashlib.sha256,
-    ).digest()[:8]
-    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
-
-
-def build_inline_transfer_callback(
-    from_user_id: int, phone: str, expires_at: int
-) -> bytes:
-    digits = AccountManager._digits_only(phone)
-    payload = ":".join(
-        (
-            INLINE_TRANSFER_CALLBACK_PREFIX,
-            _base36_encode(from_user_id),
-            _base36_encode(expires_at),
-            digits,
-        )
-    )
-    callback = f"{payload}:{_inline_transfer_signature(payload)}".encode("ascii")
-    if len(callback) > 64:
-        raise ValueError("inline transfer callback exceeds Telegram's 64-byte limit")
-    return callback
-
-
-def parse_inline_transfer_callback(data: bytes, now: int | None = None):
-    try:
-        decoded = data.decode("ascii")
-        prefix, sender_text, expiry_text, digits, signature = decoded.split(":")
-        if prefix != INLINE_TRANSFER_CALLBACK_PREFIX or not re.fullmatch(r"\d{6,15}", digits):
-            return None, "invalid"
-        payload = ":".join((prefix, sender_text, expiry_text, digits))
-        if not hmac.compare_digest(signature, _inline_transfer_signature(payload)):
-            return None, "invalid"
-        from_user_id = _base36_decode(sender_text)
-        expires_at = _base36_decode(expiry_text)
-        if from_user_id <= 0 or expires_at <= int(time.time() if now is None else now):
-            return None, "expired"
-        return (from_user_id, f"+{digits}", expires_at), "ok"
-    except (UnicodeDecodeError, ValueError, TypeError):
-        return None, "invalid"
-
-
-def _inline_phone_input(text: str) -> str:
-    text = (text or "").strip()
-    if not re.fullmatch(r"\+?[\d\s()\-]{6,24}", text):
-        return ""
-    normalized = AccountManager.normalize_phone(text)
-    digits = AccountManager._digits_only(normalized)
-    return f"+{digits}" if 6 <= len(digits) <= 15 else ""
-
-
-def _inline_transfer_thumb() -> types.InputWebDocument:
-    return types.InputWebDocument(
-        url=INLINE_TRANSFER_THUMB_URL,
-        size=0,
-        mime_type="image/jpeg",
-        attributes=[types.DocumentAttributeImageSize(w=320, h=320)],
-    )
-
-
-def _inline_source_failure_text(code: str, language="zh") -> str:
-    if code == "not_owned":
-        return t(language, "transfer.failure_not_owned")
-    if code == "source_not_vip":
-        return t(language, "transfer.failure_source_access")
-    if code == "uploaded_session_not_transferable":
-        return t(language, "transfer.failure_locked")
-    if code == "too_new":
-        return t(language, "transfer.failure_too_new")
-    return t(language, "transfer.failure_default")
 
 
 def _transfer_result_text(result, language="zh") -> str:
@@ -183,163 +84,7 @@ def _transfer_result_text(result, language="zh") -> str:
     )
 
 
-def _receiver_display_name(sender, fallback_user_id: int) -> str:
-    name_parts = [
-        getattr(sender, "first_name", None),
-        getattr(sender, "last_name", None),
-    ]
-    display_name = "".join(part.strip() for part in name_parts if part and part.strip())
-    display_name = re.sub(r"\s+", " ", display_name).strip()
-    return display_name or str(fallback_user_id)
-
-
-async def _expire_inline_transfer_card(event, detail: str) -> None:
-    language = DataManager.get_user_language(event.sender_id)
-    await event.answer(t(language, "transfer.expired", detail=detail), alert=True)
-    try:
-        await safe_edit(event,
-            t(language, "transfer.expired_title", detail=detail),
-            buttons=None,
-            parse_mode="md",
-        )
-    except Exception:
-        # The alert still tells the user what happened if Telegram no longer
-        # permits editing this inline message.
-        pass
-
-
 async def setup_transfer_handlers(bot: TelegramClient):
-    async def answer_inline_notice(event, title: str, description: str):
-        result = await event.builder.article(
-            title=title,
-            description=description,
-            text=f"{title}\n\n{description}",
-            thumb=_inline_transfer_thumb(),
-            link_preview=False,
-        )
-        await event.answer([result], cache_time=0, private=True)
-
-    @bot.on(events.InlineQuery)
-    async def inline_transfer_query(event):
-        language = DataManager.get_user_language(event.sender_id)
-        # Only a normal one-to-one user chat has exactly one possible recipient.
-        if not isinstance(event.query.peer_type, types.InlineQueryPeerTypePM):
-            await answer_inline_notice(
-                event,
-                t(language, "transfer.pm_only"),
-                t(language, "transfer.pm_only_detail"),
-            )
-            return
-
-        phone = _inline_phone_input(event.text)
-        if not phone:
-            if not (event.text or "").strip():
-                await answer_inline_notice(
-                    event,
-                    t(language, "transfer.inline_title"),
-                    t(language, "transfer.inline_detail"),
-                )
-                return
-            await answer_inline_notice(
-                event,
-                t(language, "transfer.enter_phone"),
-                t(language, "transfer.enter_phone_detail"),
-            )
-            return
-
-        validation = AccountManager.validate_account_transfer_offer(
-            event.sender_id, phone
-        )
-        if not validation.ok:
-            await answer_inline_notice(
-                event,
-                t(language, "transfer.offer_failed"),
-                _transfer_result_text(validation, language),
-            )
-            return
-
-        expires_at = int(time.time()) + INLINE_TRANSFER_TTL_SECONDS
-        callback = build_inline_transfer_callback(
-            event.sender_id, validation.phone, expires_at
-        )
-        result = await event.builder.article(
-            title=t(language, "transfer.offer_title", phone=validation.phone),
-            description=t(language, "transfer.offer_description"),
-            text=t(language, "transfer.offer_text", phone=validation.phone),
-            parse_mode="html",
-            buttons=[[
-                Button.inline(
-                    t(language, "transfer.receive"),
-                    callback,
-                )
-            ]],
-            thumb=_inline_transfer_thumb(),
-            link_preview=False,
-        )
-        await event.answer([result], cache_time=0, private=True)
-
-    @bot.on(events.CallbackQuery(pattern=rb"^itr:"))
-    async def inline_transfer_receive(event):
-        language = DataManager.get_user_language(event.sender_id)
-        offer, status = parse_inline_transfer_callback(event.data)
-        if not offer:
-            message = t(language, "transfer.request_expired") if status == "expired" else t(language, "transfer.request_invalid")
-            await event.answer(message, alert=True)
-            return
-
-        from_user_id, phone, _ = offer
-        to_user_id = event.sender_id
-
-        source_validation = AccountManager.validate_account_transfer_offer(
-            from_user_id, phone
-        )
-        if not source_validation.ok:
-            await _expire_inline_transfer_card(
-                event, _inline_source_failure_text(source_validation.code, language)
-            )
-            return
-
-        if to_user_id == from_user_id:
-            await event.answer(t(language, "transfer.self"), alert=True)
-            return
-        if not AccountManager.check_access(to_user_id):
-            await event.answer(t(language, "transfer.vip_required"), alert=True)
-            return
-
-        validation = AccountManager.validate_account_transfer(
-            from_user_id, phone, to_user_id
-        )
-        if not validation.ok:
-            if validation.code in {
-                "not_owned",
-                "source_not_vip",
-                "uploaded_session_not_transferable",
-                "too_new",
-            }:
-                await _expire_inline_transfer_card(
-                    event, _inline_source_failure_text(validation.code, language)
-                )
-                return
-            await event.answer(_transfer_result_text(validation, language), alert=True)
-            return
-
-        result = await AccountManager.transfer_account(
-            from_user_id,
-            phone,
-            to_user_id,
-            notify_target=False,
-        )
-        if not result.ok:
-            await event.answer(_transfer_result_text(result, language), alert=True)
-            return
-
-        receiver_name = _receiver_display_name(await event.get_sender(), to_user_id)
-        await safe_edit(event,
-            t(language, "transfer.received", name=receiver_name, phone=result.phone),
-            buttons=None,
-            parse_mode="html",
-        )
-
     async def render_transfer_accounts(event, page: int = 0):
         user_id = event.sender_id
         language = DataManager.get_user_language(user_id)

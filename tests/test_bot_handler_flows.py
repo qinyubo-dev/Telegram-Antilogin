@@ -75,7 +75,7 @@ def test_more_menu_access_and_layout(handler_bot, event_factory):
     buttons = edit.await_args.kwargs["buttons"]
     assert [[button.data for button in row] for row in buttons] == [
         [b"reload_user_accounts", b"customer_support"],
-        [b"show_help", b"language_menu"],
+        [b"show_help"],
         [b"back_to_main"],
     ]
     back = buttons[-1][0]
@@ -93,50 +93,6 @@ def test_start_cleanup_failure(handler_bot, event_factory, reason):
     ), patch("handlers.bot_handlers.AccountManager.cleanup_stale_pending_sessions"):
         run(bot.find("start")(event))
     event.respond.assert_awaited_once()
-
-
-def test_start_language_failure_and_success(handler_bot, event_factory):
-    bot = register(handler_bot)
-    result = SimpleNamespace(ok=True, reason="")
-    event = event_factory(get_sender=AsyncMock(return_value=SimpleNamespace(lang_code="en")))
-    common = [
-        patch("handlers.bot_handlers.cancel_pending_login_flow", new=AsyncMock(return_value=result)),
-        patch("handlers.bot_handlers.delete_remembered_main_menu", new=AsyncMock()),
-        patch("handlers.bot_handlers.delete_remembered_start_command", new=AsyncMock()),
-        patch("handlers.bot_handlers.AccountManager.cleanup_stale_pending_sessions"),
-    ]
-    with ExitStack() as stack:
-        for item in common:
-            stack.enter_context(item)
-        stack.enter_context(
-            patch("handlers.bot_handlers.DataManager.initialize_user_language", return_value=False)
-        )
-        run(bot.find("start")(event))
-    event.respond.assert_awaited_once()
-
-    event = event_factory(get_sender=AsyncMock(return_value=SimpleNamespace(lang_code="zh")))
-    with patch(
-        "handlers.bot_handlers.cancel_pending_login_flow", new=AsyncMock(return_value=result)
-    ), patch(
-        "handlers.bot_handlers.delete_remembered_main_menu", new=AsyncMock()
-    ) as delete_main_menu, patch(
-        "handlers.bot_handlers.delete_remembered_start_command", new=AsyncMock()
-    ), patch(
-        "handlers.bot_handlers.DataManager.initialize_user_language", return_value=True
-    ), patch(
-        "handlers.bot_handlers.AccountManager.check_access", return_value=True
-    ), patch(
-        "handlers.bot_handlers.AccountManager.cleanup_stale_pending_sessions"
-    ), patch("handlers.bot_handlers.remember_start_command_message") as remember, patch(
-        "handlers.bot_handlers.remember_main_menu_message"
-    ) as remember_main_menu, patch(
-        "handlers.bot_handlers.render_home", new=AsyncMock(return_value="main-menu")
-    ) as render:
-        run(bot.find("start")(event))
-    delete_main_menu.assert_awaited_once_with(1001)
-    remember.assert_called_once_with(1001, event)
-    render.assert_awaited_once()
-    remember_main_menu.assert_called_once_with(1001, "main-menu")
 
 
 def test_support_success_and_failure(handler_bot, event_factory):
@@ -166,62 +122,6 @@ def test_support_success_and_failure(handler_bot, event_factory):
             failure.respond.assert_awaited_once()
         else:
             edit.assert_awaited_once()
-
-
-def test_help_and_language_flows(handler_bot, event_factory):
-    bot = register(handler_bot)
-    help_event = event_factory(data=b"show_help")
-    with patch("handlers.bot_handlers.safe_edit", new=AsyncMock()) as edit:
-        run(bot.find("show_help")(help_event))
-    edit.assert_awaited_once()
-
-    help_command = event_factory(text="/help")
-    with patch("handlers.bot_handlers.t", return_value="help text"):
-        run(bot.find("help_command")(help_command))
-    help_command.respond.assert_awaited_once_with("help text")
-    help_command.delete.assert_not_awaited()
-
-    command = event_factory()
-    with patch(
-        "handlers.bot_handlers.cancel_user_flow_for_language", new=AsyncMock(return_value=True)
-    ):
-        with pytest.raises(events.StopPropagation):
-            run(bot.find("language_command")(command))
-    command.respond.assert_awaited_once()
-
-    blocked = event_factory()
-    with patch(
-        "handlers.bot_handlers.cancel_user_flow_for_language", new=AsyncMock(return_value=False)
-    ):
-        with pytest.raises(events.StopPropagation):
-            run(bot.find("language_command")(blocked))
-    blocked.respond.assert_awaited_once()
-
-    for allowed in (False, True):
-        menu = event_factory(data=b"language_menu")
-        with patch(
-            "handlers.bot_handlers.cancel_user_flow_for_language",
-            new=AsyncMock(return_value=allowed),
-        ), patch("handlers.bot_handlers.safe_answer_callback", new=AsyncMock()), patch(
-            "handlers.bot_handlers.safe_edit", new=AsyncMock()
-        ) as edit:
-            run(bot.find("language_menu")(menu))
-        edit.assert_awaited_once()
-
-
-def test_language_set_failure_and_success(handler_bot, event_factory):
-    bot = register(handler_bot)
-    failed = event_factory(data=b"language_set_en")
-    with patch("handlers.bot_handlers.DataManager.set_user_language", return_value=False):
-        run(bot.find("language_set")(failed))
-    assert failed.answer.await_args.kwargs == {"alert": True}
-
-    success = event_factory(data=b"language_set_en")
-    with patch("handlers.bot_handlers.DataManager.set_user_language", return_value=True), patch(
-        "handlers.bot_handlers.render_home", new=AsyncMock()
-    ) as render:
-        run(bot.find("language_set")(success))
-    render.assert_awaited_once()
 
 
 def test_back_to_main_cleanup_paths(handler_bot, event_factory):

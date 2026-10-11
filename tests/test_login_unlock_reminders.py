@@ -18,7 +18,7 @@ from reminders.login_unlock_reminder import (
     beijing_text,
     parse_schedule_offsets,
 )
-from user_timezones import TIMEZONE_CHOICES, timezone_text
+from user_timezones import timezone_text
 from storage import data_manager as dm
 from storage.data_manager import DataManager
 
@@ -135,46 +135,9 @@ def test_schedule_uses_official_seconds_beijing_time_and_independent_quota(remin
     assert full.status == "full" and full.used == 3
 
 
-def test_timezone_defaults_follow_language_and_explicit_choice_wins(reminder_storage):
-    assert DataManager.get_user_timezone(1) == "Asia/Shanghai"
-    dm.user_data[1]["language"] = "en"
-    assert DataManager.get_user_timezone(1) == "Europe/London"
-
-    assert DataManager.set_user_timezone(1, "America/Los_Angeles")
-    dm.user_data[1]["language"] = "zh"
-    assert DataManager.get_user_timezone(1) == "America/Los_Angeles"
-    assert not DataManager.set_user_timezone(1, "Invalid/Timezone")
-
-
-def test_timezone_text_formats_selected_region():
+def test_timezone_text_uses_china_time():
     value = datetime(2026, 1, 2, 12, 0, 0, tzinfo=timezone.utc)
-    assert timezone_text(value, "Asia/Shanghai") == "2026-01-02 20:00:00"
-    assert timezone_text(value, "America/New_York") == "2026-01-02 07:00:00"
-
-
-def test_timezone_selector_covers_24_global_zones():
-    assert len(TIMEZONE_CHOICES) == 24
-    assert len({name for _, name in TIMEZONE_CHOICES}) == 24
-
-
-def test_timezone_selector_displays_raw_iana_names(handler_bot, event_factory):
-    from handlers.login_unlock_handlers import setup_login_unlock_handlers
-
-    run(setup_login_unlock_handlers(handler_bot))
-    event = event_factory(sender_id=1, data=b"login_unlock_timezone")
-    safe_edit = AsyncMock()
-    with patch(
-        "handlers.login_unlock_handlers.require_access",
-        new=AsyncMock(return_value=True),
-    ), patch(
-        "handlers.login_unlock_handlers.DataManager.get_user_timezone",
-        return_value="Europe/London",
-    ), patch("handlers.login_unlock_handlers.safe_edit", new=safe_edit):
-        run(handler_bot.find("login_unlock_timezone")(event))
-
-    buttons = safe_edit.await_args.kwargs["buttons"]
-    labels = [button.text.removeprefix("✓ ") for row in buttons[:-1] for button in row]
-    assert labels == [timezone_name for _, timezone_name in TIMEZONE_CHOICES]
+    assert timezone_text(value) == "2026-01-02 20:00:00"
 
 
 def test_short_wait_is_immediate_and_does_not_use_slot(reminder_storage):
@@ -348,9 +311,6 @@ def test_login_unlock_list_opens_account_detail_before_cancel(
     ), patch(
         "handlers.login_unlock_handlers.cancel_pending_login_flow",
         new=AsyncMock(return_value=SimpleNamespace(ok=True)),
-    ), patch(
-        "handlers.login_unlock_handlers.DataManager.get_user_timezone",
-        return_value="Asia/Shanghai",
     ), patch("handlers.login_unlock_handlers.safe_edit", new=safe_edit):
         run(handler_bot.find("login_unlock_menu")(menu_event))
 
@@ -403,7 +363,6 @@ def test_admin_reminder_button_names_and_unlock_child_has_no_icon(
     from localization import t
 
     assert t("zh", "admin.panel.reminders") == "提醒设置"
-    assert t("en", "admin.panel.reminders") == "Reminder settings"
 
 
 def test_manual_handler_probes_phone_and_does_not_continue_login(

@@ -14,7 +14,7 @@ from accounts import account_runtime
 from localization import t
 from storage.data_manager import DataManager
 import settings as config
-from user_timezones import default_timezone, timezone_text
+from user_timezones import timezone_text
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ def utc_iso(value: datetime) -> str:
 
 def beijing_text(value: datetime) -> str:
     """Backward-compatible helper retained for existing callers and tests."""
-    return timezone_text(value, "Asia/Shanghai")
+    return timezone_text(value)
 
 
 def format_offset(offset_seconds: int, language: str = "zh") -> str:
@@ -244,17 +244,15 @@ class LoginUnlockReminderSystem:
         self,
         result: LoginUnlockScheduleResult,
         language: str,
-        timezone_name: Optional[str] = None,
     ) -> str:
-        timezone_name = timezone_name or default_timezone(language)
-        unlock = timezone_text(result.unlock_at, timezone_name)
+        unlock = timezone_text(result.unlock_at)
         quota = f"{result.used} / {format_limit(result.limit, language)}"
         if result.status == "scheduled":
             reminder_list = "\n".join(
                 t(
                     language,
                     "login_unlock.reminder_time_line",
-                    time=timezone_text(value, timezone_name),
+                    time=timezone_text(value),
                 )
                 for value in result.reminder_times if value is not None
             )
@@ -376,7 +374,7 @@ class LoginUnlockReminderSystem:
             "login_unlock.notification",
             phone=record.get("phone", ""),
             remaining=format_offset(int(node["offset_seconds"]), language),
-            unlock=timezone_text(unlock_at, DataManager.get_user_timezone(user_id)),
+            unlock=timezone_text(unlock_at),
         )
         return bool(await AccountManager._safe_send_bot_message(
             self.bot,

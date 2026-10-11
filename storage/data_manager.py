@@ -13,8 +13,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_DOWN
 from typing import Dict, List, Optional
 import settings as config
-from localization import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalize_language
-from user_timezones import SUPPORTED_TIMEZONES, default_timezone
+from localization import DEFAULT_LANGUAGE
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +36,6 @@ payment_orders_load_succeeded = False
 # 活跃订阅索引（user_id -> expiry_ts），用于加速到期查询。
 # 注意：user_data 里既有 int 键（用户数据）也有 str 键（系统数据），这里仅缓存 int 用户。
 subscription_expiry_index: Dict[int, float] = {}
-
-
-class UnsupportedSchemaError(ValueError):
-    pass
 
 
 class DataManager:
@@ -117,7 +112,7 @@ class DataManager:
     
     @staticmethod
     def load_user_data() -> bool:
-        """加载当前 schema 的用户数据；旧格式必须先由离线迁移工具处理。"""
+        """加载用户数据。"""
         global user_data, data_load_succeeded
         data_load_succeeded = False
         try:
@@ -126,10 +121,6 @@ class DataManager:
                     loaded_data = json.load(f)
                 if not isinstance(loaded_data, dict):
                     raise ValueError('用户数据文件顶层必须是对象')
-                if loaded_data.get('schema_version') != USER_DATA_SCHEMA_VERSION:
-                    raise UnsupportedSchemaError(
-                        '用户数据 schema 不受支持，请先运行 migrate_runtime_data.py --apply'
-                    )
 
                 user_data = {}
                 for key, value in loaded_data.items():
@@ -143,14 +134,6 @@ class DataManager:
                             user_id = int(key)
                             if not isinstance(value, dict):
                                 raise ValueError(f'用户 {key} 的数据必须是对象')
-                            legacy_fields = {
-                                'is_vip', 'vip_expiry', 'vip_added', 'vip_days',
-                            }.intersection(value)
-                            if legacy_fields:
-                                raise ValueError(
-                                    f'用户 {key} 仍包含旧 VIP 字段: '
-                                    + ', '.join(sorted(legacy_fields))
-                                )
                             user_data[user_id] = value
                         except (TypeError, ValueError) as error:
                             if str(key).isdigit():
@@ -177,12 +160,6 @@ class DataManager:
                 DataManager.rebuild_subscription_index()
                 logger.debug("📝 用户数据文件不存在，已创建空数据")
                 return True
-        except UnsupportedSchemaError as e:
-            logger.error(f"❌ 加载用户数据失败: {str(e)}")
-            user_data = DataManager._default_data()
-            DataManager.rebuild_subscription_index()
-            data_load_succeeded = False
-            return False
         except Exception as e:
             logger.error(f"❌ 加载用户数据失败: {str(e)}")
             try:
@@ -210,14 +187,6 @@ class DataManager:
                 if key in {'payment_orders', 'vip_prices'}:
                     continue
                 if isinstance(key, int):
-                    legacy_fields = {
-                        'is_vip', 'vip_expiry', 'vip_added', 'vip_days',
-                    }.intersection(value)
-                    if legacy_fields:
-                        raise ValueError(
-                            f'用户 {key} 仍包含旧 VIP 字段: '
-                            + ', '.join(sorted(legacy_fields))
-                        )
                     # 用户数据，使用字符串键
                     save_data[str(key)] = value
                 else:
@@ -309,83 +278,9 @@ class DataManager:
 
     @staticmethod
     def get_user_language(user_id: int) -> str:
-        """Return a persisted supported language, falling back without writing."""
-        info = user_data.get(int(user_id), {})
-        language = info.get('language') if isinstance(info, dict) else None
-        return language if language in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
+        """The bot is Chinese-only; kept so call sites can keep passing a language."""
+        return DEFAULT_LANGUAGE
 
-    @staticmethod
-    def has_user_language(user_id: int) -> bool:
-        info = user_data.get(int(user_id), {})
-        return isinstance(info, dict) and info.get('language') in SUPPORTED_LANGUAGES
-
-    @staticmethod
-    def initialize_user_language(user_id: int, telegram_language_code=None) -> bool:
-        """Persist an inferred language once; never overwrite a user's choice."""
-        if not data_load_succeeded:
-            # Handler unit tests may run before application bootstrap. Production
-            # always loads data before registering or dispatching handlers.
-            return True
-        user_id = int(user_id)
-        if DataManager.has_user_language(user_id):
-            return True
-        existed = user_id in user_data
-        previous = copy.deepcopy(user_data.get(user_id)) if existed else None
-        info = user_data.setdefault(user_id, {})
-        info['language'] = normalize_language(telegram_language_code)
-        if DataManager.save_user_data():
-            return True
-        if existed:
-            user_data[user_id] = previous
-        else:
-            user_data.pop(user_id, None)
-        return False
-
-    @staticmethod
-    def set_user_language(user_id: int, language: str) -> bool:
-        """Atomically persist an explicit language selection."""
-        if language not in SUPPORTED_LANGUAGES:
-            return False
-        user_id = int(user_id)
-        existed = user_id in user_data
-        previous = copy.deepcopy(user_data.get(user_id)) if existed else None
-        info = user_data.setdefault(user_id, {})
-        info['language'] = language
-        if DataManager.save_user_data():
-            return True
-        if existed:
-            user_data[user_id] = previous
-        else:
-            user_data.pop(user_id, None)
-        return False
-
-    @staticmethod
-    def get_user_timezone(user_id: int) -> str:
-        """Return an explicit timezone, or infer a default from UI language."""
-        info = user_data.get(int(user_id), {})
-        selected = info.get('timezone') if isinstance(info, dict) else None
-        if selected in SUPPORTED_TIMEZONES:
-            return selected
-        return default_timezone(DataManager.get_user_language(user_id))
-
-    @staticmethod
-    def set_user_timezone(user_id: int, timezone_name: str) -> bool:
-        """Atomically persist an explicit supported timezone selection."""
-        if timezone_name not in SUPPORTED_TIMEZONES:
-            return False
-        user_id = int(user_id)
-        existed = user_id in user_data
-        previous = copy.deepcopy(user_data.get(user_id)) if existed else None
-        info = user_data.setdefault(user_id, {})
-        info['timezone'] = timezone_name
-        if DataManager.save_user_data():
-            return True
-        if existed:
-            user_data[user_id] = previous
-        else:
-            user_data.pop(user_id, None)
-        return False
-    
     @staticmethod
     def has_active_subscription(user_id: int) -> bool:
         """检查用户是否有活跃订阅。"""
@@ -1363,10 +1258,6 @@ class DataManager:
                     loaded = json.load(stream)
                 if not isinstance(loaded, dict):
                     raise ValueError('支付订单文件顶层必须是对象')
-                if loaded.get('schema_version') != PAYMENT_ORDERS_SCHEMA_VERSION:
-                    raise UnsupportedSchemaError(
-                        '支付订单 schema 不受支持，请先运行 migrate_runtime_data.py --apply'
-                    )
                 orders = loaded.get('orders')
                 if not isinstance(orders, dict):
                     raise ValueError('支付订单文件缺少 orders 对象')
@@ -1380,11 +1271,6 @@ class DataManager:
             DataManager.recover_payment_fulfillments()
             logger.info(f"✅ 已加载 {len(payment_orders)} 个支付订单")
             return True
-        except UnsupportedSchemaError as e:
-            logger.error(f"❌ 加载支付订单失败: {str(e)}")
-            payment_orders = {}
-            payment_orders_load_succeeded = False
-            return False
         except Exception as e:
             logger.error(f"❌ 加载支付订单失败: {str(e)}")
             if os.path.exists(PAYMENT_ORDERS_FILE):
@@ -1408,16 +1294,6 @@ class DataManager:
                 logger.error("拒绝保存支付订单：订单文件尚未成功加载")
                 return False
             payment_orders = orders if isinstance(orders, dict) else {}
-            legacy_order_ids = [
-                str(order_id)
-                for order_id, order in payment_orders.items()
-                if isinstance(order, dict) and order.get('type') == 'vip_purchase'
-            ]
-            if legacy_order_ids:
-                raise ValueError(
-                    '支付订单仍包含旧 vip_purchase 类型: '
-                    + ', '.join(legacy_order_ids[:5])
-                )
             data_dir = os.path.dirname(os.path.abspath(PAYMENT_ORDERS_FILE)) or '.'
             os.makedirs(data_dir, exist_ok=True)
             fd, tmp_path = tempfile.mkstemp(
@@ -1577,7 +1453,6 @@ for _method_name in (
     "set_login_code_request_timestamps",
     "set_subscription_catalog", "set_subscription_periods", "apply_subscription", "fulfill_subscription_payment",
     "set_selected_accounts", "ensure_selection_deadline",
-    "initialize_user_language", "set_user_language", "set_user_timezone",
     "activate_due_subscriptions", "mark_expiry_reminder_sent",
     "recover_payment_fulfillments",
 ):

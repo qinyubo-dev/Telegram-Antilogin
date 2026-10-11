@@ -89,8 +89,6 @@ class PaymentSystem:
 
     @staticmethod
     def _is_active_order(order: Mapping[str, Any]) -> bool:
-        if order.get("legacy_origin") == "vip_purchase":
-            return False
         if order.get("processed"):
             return False
         status = str(order.get("status", "pending"))
@@ -157,8 +155,6 @@ class PaymentSystem:
 
     @staticmethod
     def classify_admin_order(order: Mapping[str, Any]) -> str:
-        if order.get("legacy_origin") == "vip_purchase":
-            return "completed" if order.get("processed") else "closed"
         if order.get("processed"):
             return "completed"
         status = str(order.get("status", "pending"))
@@ -203,7 +199,6 @@ class PaymentSystem:
                 "type": order.get("type"),
                 "amount": order.get("amount"),
                 "coin": order.get("coin"),
-                "legacy_read_only": order.get("legacy_origin") == "vip_purchase",
             })
         rows.sort(
             key=lambda item: float(item["created_time"])
@@ -236,8 +231,6 @@ class PaymentSystem:
 
         for order in self.pending_orders.values():
             if not isinstance(order, dict) or order.get("type") != "subscription_purchase":
-                continue
-            if order.get("legacy_origin") == "vip_purchase":
                 continue
             if not order.get("processed") or order.get("status") != "paid":
                 continue
@@ -289,7 +282,6 @@ class PaymentSystem:
                     "status": order.get("status", "unknown"),
                     "processed": bool(order.get("processed")),
                     "type": order.get("type"),
-                    "legacy_read_only": order.get("legacy_origin") == "vip_purchase",
                     "amount": order.get("amount"),
                     "coin": order.get("coin"),
                     "created_time": order.get("created_time", 0),
@@ -925,8 +917,6 @@ class PaymentSystem:
         if order_id not in self.pending_orders:
             return {"success": False, "error": "订单不存在"}
         order = self.pending_orders[order_id]
-        if order.get("legacy_origin") == "vip_purchase":
-            return {"success": False, "error": "遗留订阅订单仅供查看"}
         if order.get("processed"):
             return {"success": True, "status": "paid", "already_processed": True}
         if order.get("status") == "expired":
