@@ -320,7 +320,7 @@ class PaymentSystem:
             self._save_orders()
         except Exception as exc:
             logger.warning(
-                "删除过期支付消息失败: order_id=%s, error=%s",
+                "删除过期支付消息失败: 订单=%s, 错误=%s",
                 order_id, type(exc).__name__,
             )
 
@@ -367,7 +367,7 @@ class PaymentSystem:
 
         self._rebuild_active_order_ids()
         await self._delete_expired_order_message(order_id)
-        logger.info('支付订单已在本地过期: %s', order_id)
+        logger.info('支付订单已在本地过期: 订单=%s', order_id)
         return True
 
     async def _expire_stale_subscription_orders_for_user(self, user_id: int) -> None:
@@ -420,7 +420,7 @@ class PaymentSystem:
                 if isinstance(exc, (RPCError, ConnectionError, TimeoutError, OSError)):
                     account_runtime.mark_notify_bot_degraded(exc)
                 logger.warning(
-                    "通知管理员失败: order_id=%s, admin_id=%s, error=%s",
+                    "通知管理员失败: 订单=%s, 管理员=%s, 错误=%s",
                     order_id, admin_id, type(exc).__name__,
                 )
         if changed:
@@ -616,7 +616,7 @@ class PaymentSystem:
                     self._provider_failure_count = 0
                     self._provider_open_until = now + self.provider_cooldown
                     logger.warning(
-                        "OkayPay 熔断已开启: error_kind=%s, cooldown_seconds=%s",
+                        "OkayPay 熔断已开启: 类型=%s, 冷却=%s秒",
                         error_kind,
                         self.provider_cooldown,
                     )
@@ -646,7 +646,7 @@ class PaymentSystem:
         }
         if http_status == 429:
             logger.warning(
-                "OkayPay %s 请求受限: HTTP 429, content_type=%s, response_length=%s, summary=%s",
+                "OkayPay %s 请求受限: HTTP 429, 类型=%s, 长度=%s, 摘要=%s",
                 endpoint, content_type, len(response_text),
                 self._safe_response_summary(response_text),
             )
@@ -659,7 +659,7 @@ class PaymentSystem:
             }
         if http_status >= 500:
             logger.warning(
-                "OkayPay %s 服务异常: HTTP %s, content_type=%s, response_length=%s, summary=%s",
+                "OkayPay %s 服务异常: HTTP %s, 类型=%s, 长度=%s, 摘要=%s",
                 endpoint, http_status, content_type, len(response_text),
                 self._safe_response_summary(response_text),
             )
@@ -674,7 +674,7 @@ class PaymentSystem:
             payload = json.loads(response_text, parse_float=Decimal)
         except json.JSONDecodeError:
             logger.warning(
-                "OkayPay %s 返回非JSON响应: HTTP %s, content_type=%s, response_length=%s, summary=%s",
+                "OkayPay %s 返回非 JSON 响应: HTTP %s, 类型=%s, 长度=%s, 摘要=%s",
                 endpoint, http_status, content_type, len(response_text),
                 self._safe_response_summary(response_text),
             )
@@ -766,7 +766,7 @@ class PaymentSystem:
                         "retryable": True,
                     }
                 except aiohttp.ClientError as exc:
-                    logger.warning("OkayPay %s 网络请求失败: %s", endpoint, type(exc).__name__)
+                    logger.warning("OkayPay %s 网络请求失败: 类型=%s", endpoint, type(exc).__name__)
                     result = {
                         "success": False,
                         "error": "支付网络请求失败，请稍后重试",
@@ -839,7 +839,7 @@ class PaymentSystem:
         if not self._save_orders():
             await self._notify_admin_order_exception(str(order_id), 'local_order_save_failed')
             return {"success": False, "error": "支付订单保存失败，请联系管理员"}
-        logger.info("支付链接创建成功: %s, unique_id: %s", order_id, unique_id)
+        logger.info("支付链接创建成功: 订单=%s, unique_id=%s", order_id, unique_id)
         return {"success": True, "order_id": str(order_id), "pay_url": str(pay_url)}
 
     async def query_order_by_id(self, order_id: str) -> Dict[str, Any]:
@@ -925,7 +925,7 @@ class PaymentSystem:
 
         valid, error = self._validate_paid_order(order_id, remote)
         if not valid:
-            logger.error("拒绝处理订单 %s: %s", order_id, error)
+            logger.error("拒绝处理订单: 订单=%s, 错误=%s", order_id, error)
             order.update({
                 'payment_validation_error': error,
                 'needs_manual_review': True,
@@ -1038,7 +1038,7 @@ class PaymentSystem:
         except Exception as exc:
             if isinstance(exc, (RPCError, ConnectionError, TimeoutError, OSError)):
                 account_runtime.mark_notify_bot_degraded(exc)
-            logger.warning("支付成功但通知用户失败: 订单 %s: %s", order_id, type(exc).__name__)
+            logger.warning("支付成功但通知用户失败: 订单=%s, 类型=%s", order_id, type(exc).__name__)
 
     @staticmethod
     def _is_custom_plus(quote: Mapping[str, Any]) -> bool:
@@ -1202,7 +1202,7 @@ class PaymentSystem:
                 order.clear()
                 order.update(previous_order)
                 return {'success': False, 'error': t("payment.error.cancel_save")}
-            logger.info('用户取消支付订单: %s, user_id=%s', order_id, user_id)
+            logger.info('用户取消支付订单: 订单=%s, 用户=%s', order_id, user_id)
             return {'success': True, 'status': 'cancelled'}
 
     async def find_order_by_unique_id(self, unique_id: str) -> str | None:
@@ -1292,7 +1292,7 @@ class PaymentSystem:
                 return
             self._update_order_retry(order_id, result, time.time())
             if not result.get("success") and not result.get("retryable"):
-                logger.warning("自动查单失败: %s: %s", order_id, result.get("error"))
+                logger.warning("自动查单失败: 订单=%s, 错误=%s", order_id, result.get("error"))
 
         if active_order_ids:
             await asyncio.gather(*(check_one(order_id) for order_id in active_order_ids))
@@ -1316,7 +1316,7 @@ class PaymentSystem:
             return
         error = task.exception()
         if error:
-            logger.error("支付订单监控意外退出: %s", error)
+            logger.error("支付订单监控意外退出: 错误=%s", error)
 
     async def start_monitoring(self) -> asyncio.Task:
         if self.monitoring_task and not self.monitoring_task.done():

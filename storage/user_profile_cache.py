@@ -38,7 +38,7 @@ class UserProfileCache:
             cls._profiles = {}
         except Exception:
             cls._profiles = {}
-            logger.exception("Failed to load Telegram user profile cache")
+            logger.exception("读取用户资料缓存失败")
 
     @classmethod
     def get(cls, user_id: int):
@@ -140,7 +140,7 @@ class UserProfileCache:
                 os.fsync(cache_file.fileno())
             os.replace(temp_path, PROFILE_CACHE_FILE)
         except Exception:
-            logger.exception("Failed to save Telegram user profile cache")
+            logger.exception("保存用户资料缓存失败")
             if temp_path:
                 try:
                     os.remove(temp_path)

@@ -189,7 +189,7 @@ async def setup_bot_handlers(bot: TelegramClient, payment_system: PaymentSystem)
             sender = await event.get_sender()
             UserProfileCache.set_entity(sender)
         except Exception:
-            logger.debug("用户资料缓存更新失败: user_id=%s", event.sender_id)
+            logger.debug("用户资料缓存更新失败: 用户=%s", event.sender_id)
 
     @bot.on(events.NewMessage)
     async def cache_message_sender(event):

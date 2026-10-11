@@ -187,7 +187,7 @@ def _guard_notify_bot_handler(callback):
                     return await answer(*args, **kwargs)
                 except QueryIdInvalidError:
                     logger.info(
-                        "回调确认已过期: handler=%s, user_id=%s",
+                        "回调确认已过期: handler=%s, 用户=%s",
                         callback.__name__,
                         getattr(event, "sender_id", "unknown"),
                     )
@@ -264,7 +264,7 @@ def mark_notify_bot_fatal(error: Exception) -> NotifyBotHealth:
             changed_at=datetime.now(timezone.utc),
         )
         logger.critical(
-            "主 Bot 授权永久失效: 错误类型=%s, 错误=%s",
+            "主 Bot 授权永久失效: 类型=%s, 错误=%s",
             _notify_bot_health.error_type,
             _notify_bot_health.reason,
         )

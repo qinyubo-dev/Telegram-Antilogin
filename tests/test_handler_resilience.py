@@ -137,9 +137,9 @@ class MessageDeletionLoggingTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result)
         output = "\n".join(captured.output)
         self.assertIn("无法删除敏感输入", output)
-        self.assertIn("用户ID=123", output)
-        self.assertIn("消息ID=456", output)
-        self.assertIn("异常类型=PermissionError", output)
+        self.assertIn("用户=123", output)
+        self.assertIn("消息=456", output)
+        self.assertIn("类型=PermissionError", output)
         self.assertNotIn("denied", output)
 
     async def test_prompt_failure_is_info_with_error_type(self):
@@ -155,8 +155,8 @@ class MessageDeletionLoggingTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result)
         output = "\n".join(captured.output)
         self.assertIn("INFO:handlers.handler_utils:提示消息无法删除", output)
-        self.assertIn("消息ID=789", output)
-        self.assertIn("异常类型=RuntimeError", output)
+        self.assertIn("消息=789", output)
+        self.assertIn("类型=RuntimeError", output)
         self.assertNotIn("gone", output)
 
     async def test_invalid_status_message_warns_and_sends_replacement(self):
@@ -171,8 +171,8 @@ class MessageDeletionLoggingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, "replacement")
         bot.send_message.assert_awaited_once_with(913, "new content")
         output = "\n".join(captured.output)
-        self.assertIn("user_id=913", output)
-        self.assertIn("message_id=77", output)
+        self.assertIn("用户=913", output)
+        self.assertIn("消息=77", output)
         self.assertNotIn("Traceback", output)
 
 
@@ -863,7 +863,7 @@ class QrMessageDeletionTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(await delete_qr_message_strict(message))
 
         message.delete.assert_awaited_once_with()
-        self.assertIn("permanently refused", "\n".join(captured.output))
+        self.assertIn("永久拒绝删除二维码消息", "\n".join(captured.output))
 
     async def test_start_recovers_from_permanently_undeletable_qr_message(self):
         user_id = 918
@@ -925,8 +925,8 @@ class QrMessageDeletionTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(await delete_qr_message_strict(message))
         output = "\n".join(captured.output)
         self.assertIn("ConnectionError", output)
-        self.assertIn("message_id=35", output)
-        self.assertIn("chat_id=913", output)
+        self.assertIn("消息=35", output)
+        self.assertIn("聊天=913", output)
         self.assertNotIn("TOP-SECRET-CONTENT", output)
 
     async def test_persistent_delete_failure_blocks_new_menu(self):

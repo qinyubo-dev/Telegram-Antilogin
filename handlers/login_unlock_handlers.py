@@ -56,7 +56,7 @@ async def cancel_login_unlock_flow(user_id: int) -> None:
     )
     if not done:
         logger.warning(
-            "取消登录解锁检测任务超时，继续清理用户流程: 用户ID=%s, 超时=%s秒",
+            "取消登录解锁检测任务超时，继续清理用户流程: 用户=%s, 超时=%s秒",
             user_id,
             LOGIN_UNLOCK_CANCEL_TIMEOUT_SECONDS,
         )
@@ -66,7 +66,7 @@ async def cancel_login_unlock_flow(user_id: int) -> None:
     except asyncio.CancelledError:
         pass
     except Exception:
-        logger.info("取消登录解锁检测任务时任务已异常结束: 用户ID=%s", user_id)
+        logger.info("取消登录解锁检测任务时任务已异常结束: 用户=%s", user_id)
 
 
 async def setup_login_unlock_handlers(bot: TelegramClient):
@@ -254,7 +254,7 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception("创建登录解限检测客户端失败: 用户ID=%s", user_id)
+            logger.exception("创建登录解限检测客户端失败: 用户=%s", user_id)
             result = t("login_unlock.manual_failed")
         try:
             await status.edit(
@@ -264,7 +264,7 @@ async def setup_login_unlock_handlers(bot: TelegramClient):
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.info("登录解锁结果消息已不可编辑: 用户ID=%s", user_id)
+            logger.info("登录解锁结果消息已不可编辑: 用户=%s", user_id)
         finally:
             if _login_unlock_probe_tasks.get(int(user_id)) is task:
                 _login_unlock_probe_tasks.pop(int(user_id), None)

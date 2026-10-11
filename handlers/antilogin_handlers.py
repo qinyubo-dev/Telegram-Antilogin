@@ -158,7 +158,7 @@ async def setup_antilogin_handlers(bot: TelegramClient):
             )
         except Exception as error:
             logger.exception(
-                "处理新设备授权失败: user_id=%s phone=%s hash=%s",
+                "处理新设备授权失败: 用户=%s, 手机号=%s, hash=%s",
                 user_id,
                 phone,
                 auth_hash,

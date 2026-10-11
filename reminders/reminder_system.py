@@ -159,10 +159,10 @@ class ReminderSystem:
                             user_id, expiry_date, days_left
                         ):
                             had_failures = True
-                            logger.error("到期提醒已发送但持久化失败: 用户ID=%s", user_id)
+                            logger.error("到期提醒已发送但持久化失败: 用户=%s", user_id)
                             continue
                         self.sent_reminders.add(reminder_key)
-                        logger.info(f"✅ 已发送到期提醒给用户 {user_id}, 剩余 {days_left} 天")
+                        logger.info(f"已发送到期提醒: 用户={user_id}, 剩余={days_left} 天")
                         
                     except Exception as e:
                         failure_kind, reason = self._classify_send_error(e)
@@ -205,7 +205,7 @@ class ReminderSystem:
                         else:
                             self.failed_reminder_cooldowns[user_id] = now_ts + RETRYABLE_REMINDER_COOLDOWN_SECONDS
                             retryable_failures.append((user_id, f"{reason}: {e}"))
-                            logger.exception("发送到期提醒发生未知异常: 用户ID=%s", user_id)
+                            logger.exception("发送到期提醒发生未知异常: 用户=%s", user_id)
                             had_failures = True
 
             if unreachable_failures:
@@ -227,7 +227,7 @@ class ReminderSystem:
                     ),
                 )
             for user_id, error in retryable_failures:
-                logger.warning(f"发送到期提醒临时失败 {user_id}: {error}")
+                logger.warning(f"发送到期提醒临时失败: 用户={user_id}, 错误={error}")
             
             # 清理过期的提醒记录（超过到期时间1天的记录）
             self._cleanup_old_reminders()
@@ -236,7 +236,7 @@ class ReminderSystem:
         except account_runtime.NotifyBotFatalError:
             raise
         except Exception:
-            logger.exception("检查到期VIP失败")
+            logger.exception("检查到期 VIP失败")
             return True
     
     def _cleanup_old_reminders(self):
@@ -269,9 +269,9 @@ class ReminderSystem:
     async def start_monitoring(self):
         """启动提醒监控"""
         if self.monitoring_task and not self.monitoring_task.done():
-            logger.debug("VIP到期提醒监控已在运行，跳过重复启动")
+            logger.debug("VIP 到期提醒监控已在运行，跳过重复启动")
             return self.monitoring_task
-        logger.debug("启动VIP到期提醒监控...")
+        logger.debug("启动 VIP 到期提醒监控")
         self.monitoring_task = asyncio.create_task(
             self._monitor_reminders(), name="vip-expiry-reminders"
         )
@@ -284,12 +284,12 @@ class ReminderSystem:
         error = task.exception()
         if error:
             logger.error(
-                "VIP到期提醒监控意外退出: %s: %s",
+                "VIP 到期提醒监控意外退出: %s: %s",
                 type(error).__name__,
                 str(error)[:160],
             )
         else:
-            logger.error("VIP到期提醒监控意外结束但未返回错误")
+            logger.error("VIP 到期提醒监控意外结束但未返回错误")
 
     async def _monitor_reminders(self):
         """监控提醒（索引驱动：按“下一次需要提醒的时间”睡眠，避免固定全量扫描）"""

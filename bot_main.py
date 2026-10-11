@@ -507,7 +507,7 @@ async def _wait_for_runtime_termination():
 async def cleanup():
     """停止后台任务、持久化数据，并断开主 Bot 与托管客户端。"""
     global subscription_task
-    logger.info("开始清理运行资源...")
+    logger.info("开始清理运行资源")
 
     if subscription_task:
         subscription_task.cancel()
@@ -519,7 +519,7 @@ async def cleanup():
             await reminder_system.stop_monitoring()
             logger.debug("提醒系统已停止")
         except Exception as e:
-            logger.error(f"停止提醒系统失败: {str(e)}")
+            logger.error(f"停止提醒系统失败: {e}")
 
     if login_unlock_reminder_system:
         try:
@@ -527,20 +527,20 @@ async def cleanup():
             account_runtime.set_login_unlock_reminder_system(None)
             logger.debug("登录解限提醒系统已停止")
         except Exception as e:
-            logger.error(f"停止登录解限提醒系统失败: {str(e)}")
+            logger.error(f"停止登录解限提醒系统失败: {e}")
 
     if payment_system:
         try:
             await payment_system.stop_monitoring()
             logger.debug("支付订单监控已停止")
         except Exception as e:
-            logger.error(f"停止支付订单监控失败: {str(e)}")
+            logger.error(f"停止支付订单监控失败: {e}")
 
     try:
         DataManager.save_user_data()
         logger.debug("用户数据已保存")
     except Exception as e:
-        logger.error(f"保存用户数据失败: {str(e)}")
+        logger.error(f"保存用户数据失败: {e}")
 
     try:
         from accounts.account_manager import AccountManager, user_accounts
@@ -571,14 +571,14 @@ async def cleanup():
             logger.info(f"客户端断开完成: {ok_count}/{len(disconnect_jobs)}")
 
     except Exception as e:
-        logger.error(f"清理客户端连接失败: {str(e)}")
+        logger.error(f"清理客户端连接失败: {e}")
 
     if bot:
         try:
             await bot.disconnect()
-            logger.info("Bot客户端已断开")
+            logger.info("Bot 客户端已断开")
         except Exception as e:
-            logger.error(f"断开Bot客户端失败: {str(e)}")
+            logger.error(f"断开Bot 客户端失败: {e}")
 
     logger.info("清理完成")
 
@@ -588,7 +588,7 @@ async def _start_notify_bot() -> None:
         await bot.start(bot_token=BOT_TOKEN)
     except (AccessTokenInvalidError, ApiIdInvalidError) as error:
         logger.critical(
-            "主 Bot Telegram 凭据无效，进程将退出: error_type=%s",
+            "主 Bot Telegram 凭据无效，进程将退出: 类型=%s",
             type(error).__name__,
         )
         account_runtime.raise_notify_bot_fatal(
@@ -627,7 +627,7 @@ async def main():
         if not stale_pending_result.ok:
             logger.warning(
                 f"清理过期临时登录session失败: "
-                f"reason={stale_pending_result.reason}, path={stale_pending_result.path}"
+                f"原因={stale_pending_result.reason}, 路径={stale_pending_result.path}"
             )
         
         # 加载用户数据
@@ -670,27 +670,27 @@ async def main():
         await setup_bot_handlers(bot, payment_system)
         guarded_count = account_runtime.install_notify_bot_handler_guards(bot)
         logger.debug("已为 %d 个主 Bot 事件处理器安装致命错误边界", guarded_count)
-        logger.debug("Telegram客户端初始化完成")
+        logger.debug("Telegram 客户端初始化完成")
         
         # 启动机器人
         await _start_notify_bot()
         account_runtime.mark_notify_bot_healthy()
-        logger.info("🤖 机器人已启动 · %s", PROJECT_ATTRIBUTION)
+        logger.info("机器人已启动 · %s", PROJECT_ATTRIBUTION)
         
         # 加载所有session
-        logger.debug("开始加载所有session文件...")
+        logger.debug("开始加载所有Session 文件")
         await AccountManager.load_all_sessions()
         account_runtime.mark_ready()
-        logger.info("所有session文件加载完成")
+        logger.info("所有Session 文件加载完成")
         
         await payment_system.start_monitoring()
-        logger.info("✅ 支付系统自动检测已启动（5秒间隔，持续5分钟）")
+        logger.info("支付系统自动检测已启动（5秒间隔，持续5分钟）")
         
         # 启动提醒系统监控
         await reminder_system.start_monitoring()
-        logger.info("✅ 提醒系统监控已启动")
+        logger.info("提醒系统监控已启动")
         await login_unlock_reminder_system.start_monitoring()
-        logger.info("✅ 登录解限提醒监控已启动")
+        logger.info("登录解限提醒监控已启动")
         subscription_task = asyncio.create_task(
             _monitor_subscriptions(), name='subscription-coordinator'
         )
@@ -712,10 +712,10 @@ async def main():
             )
         except Exception as e:
             account_runtime.mark_notify_bot_degraded(e)
-            logger.error(f"发送启动通知失败: {str(e)}")
+            logger.error(f"发送启动通知失败: {e}")
         
         # 保持运行
-        logger.info("机器人进入运行状态...")
+        logger.info("机器人进入运行状态")
         await _wait_for_runtime_termination()
         
     except KeyboardInterrupt:

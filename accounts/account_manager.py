@@ -711,11 +711,11 @@ class AccountManager:
                 if not isinstance(transactions, dict):
                     raise ValueError("invalid account transfer journal")
                 if path == backup_path:
-                    logger.warning("主账户转移日志不可用，已从备份读取")
+                    logger.warning("主账户转让日志不可用，已从备份读取")
                 return {"version": 1, "transactions": transactions}
             except Exception as error:
                 last_error = error
-                logger.exception("读取账户转移事务日志失败: %s", path)
+                logger.exception("读取账户转让事务日志失败: %s", path)
         raise last_error or OSError("account transfer journal unavailable")
 
     @staticmethod
@@ -739,7 +739,7 @@ class AccountManager:
                 os.replace(tmp_path, path)
                 return True
             except Exception:
-                logger.exception("保存账户转移事务日志失败: %s", path)
+                logger.exception("保存账户转让事务日志失败: %s", path)
                 return False
             finally:
                 if tmp_path and os.path.exists(tmp_path):
@@ -1060,13 +1060,13 @@ class AccountManager:
                         session.close()
                 except Exception as close_error:
                     logger.warning(
-                        "强制关闭临时会话数据库失败: %s, error_type=%s",
+                        "强制关闭临时会话数据库失败: %s, 类型=%s",
                         label,
                         type(close_error).__name__,
                     )
                     return False
                 logger.warning(
-                    "临时会话数据库不可用，已关闭并允许清理: %s, error_type=%s",
+                    "临时会话数据库不可用，已关闭并允许清理: %s, 类型=%s",
                     label,
                     type(e).__name__,
                 )
@@ -1089,7 +1089,7 @@ class AccountManager:
                     functions.account.InvalidateSignInCodesRequest(codes=codes)
                 )
                 if result:
-                    logger.debug(f"已使登录验证码失效: {phone}")
+                    logger.debug(f"已使登录验证码失效: 手机号={phone}")
                     return True
                 last_error = "Telegram returned False"
             except asyncio.CancelledError:
@@ -1101,13 +1101,13 @@ class AccountManager:
                 delay_index = min(attempt, len(LOGIN_CODE_INVALIDATE_RETRY_DELAYS) - 1)
                 delay = LOGIN_CODE_INVALIDATE_RETRY_DELAYS[delay_index]
                 logger.warning(
-                    f"登录验证码失效请求失败，准备重试: {phone}, "
+                    f"登录验证码失效请求失败，准备重试: 手机号={phone}, "
                     f"尝试={attempt + 1}/{LOGIN_CODE_INVALIDATE_ATTEMPTS}"
                 )
                 await asyncio.sleep(delay)
 
         logger.error(
-            f"登录验证码失效请求最终失败: {phone}, "
+            f"登录验证码失效请求最终失败: 手机号={phone}, "
             f"尝试={LOGIN_CODE_INVALIDATE_ATTEMPTS}, 错误={last_error}"
         )
         return False
@@ -1146,7 +1146,7 @@ class AccountManager:
         connect_timeout: int = 15,
     ) -> bool:
         """Reset a Telethon connection before retrying transient health probes."""
-        logger.warning(f"Transient Telegram session error; reconnecting before retry: {label}, reason={reason}")
+        logger.warning(f"Telegram 会话临时错误，重连后重试: {label}, 原因={reason}")
         await AccountManager._safe_disconnect_client(client, f"health-retry:{label}:{reason}", timeout=5)
         if delay > 0:
             await asyncio.sleep(delay)
@@ -1154,10 +1154,10 @@ class AccountManager:
             await asyncio.wait_for(client.connect(), timeout=connect_timeout)
             return True
         except asyncio.TimeoutError:
-            logger.warning(f"Reconnect timed out before health retry: {label}, reason={reason}")
+            logger.warning(f"健康重试前重连超时: {label}, 原因={reason}")
             return False
         except Exception as e:
-            logger.warning(f"Reconnect failed before health retry: {label}, reason={reason}, error={e}")
+            logger.warning(f"健康重试前重连失败: {label}, 原因={reason}, 错误={e}")
             return False
 
     @staticmethod
@@ -1403,7 +1403,7 @@ class AccountManager:
         except Exception as e:
             if AccountManager._is_uploaded_session_format_error(e):
                 return "invalid"
-            logger.debug(f"无权限会话探测失败: {session_path}, 错误={e}")
+            logger.debug(f"无权限会话探测失败: 路径={session_path}, 错误={e}")
             return "error"
         finally:
             try:
@@ -1417,7 +1417,7 @@ class AccountManager:
         """Notify a user when a hosted account session can no longer be authorized."""
         bot = account_runtime.get_notify_bot()
         if not bot:
-            logger.info(f"通知机器人未绑定，跳过会话不可用通知: 用户ID={user_id}, 手机号={phone}")
+            logger.info(f"通知机器人未绑定，跳过会话不可用通知: 用户={user_id}, 手机号={phone}")
             return
 
         source_key = {
@@ -1437,16 +1437,16 @@ class AccountManager:
             )
             if not sent:
                 return
-            logger.debug(f"会话不可用通知已发送: 用户ID={user_id}, 手机号={display_phone}, 来源={source}")
+            logger.debug(f"会话不可用通知已发送: 用户={user_id}, 手机号={display_phone}, 来源={source}")
         except account_runtime.NotifyBotFatalError:
             raise
         except Exception as e:
-            logger.warning(f"发送会话不可用通知失败: 用户ID={user_id}, 手机号={display_phone}, 错误={e}")
+            logger.warning(f"发送会话不可用通知失败: 用户={user_id}, 手机号={display_phone}, 错误={e}")
 
     @staticmethod
     def set_notify_bot(bot):
         account_runtime.set_notify_bot(bot)
-        logger.info("✅ 账户管理器已绑定通知机器人")
+        logger.info("账户管理器已绑定通知机器人")
 
     @staticmethod
     async def _safe_send_bot_message(
@@ -1473,22 +1473,22 @@ class AccountManager:
         except ValueError as e:
             if "Could not find the input entity" in str(e):
                 logger.warning(
-                    f"无法向用户发送通知，bot 尚未解析到实体: user_id={user_id}, context={context}"
+                    f"无法向用户发送通知，bot 尚未解析到实体: 用户={user_id}, 场景={context}"
                 )
             else:
                 logger.warning(
-                    f"机器人通知失败，目标实体无效: user_id={user_id}, context={context}, 错误={e}"
+                    f"机器人通知失败，目标实体无效: 用户={user_id}, 场景={context}, 错误={e}"
                 )
             return False
         except (RPCError, ConnectionError, TimeoutError, OSError) as e:
             account_runtime.mark_notify_bot_degraded(e)
             logger.warning(
-                f"机器人通知临时失败 user_id={user_id}, context={context}, "
-                f"错误类型={type(e).__name__}, 错误={str(e)[:160]}"
+                f"机器人通知临时失败 用户={user_id}, 场景={context}, "
+                f"类型={type(e).__name__}, 错误={str(e)[:160]}"
             )
             return False
         except Exception as e:
-            logger.exception(f"机器人通知失败 user_id={user_id}, context={context}: {e}")
+            logger.exception(f"机器人通知失败 用户={user_id}, 场景={context}: {e}")
             return False
     
     @staticmethod
@@ -1694,7 +1694,7 @@ class AccountManager:
             confirm_status = confirm.get("status", "error")
             confirm_reason = confirm.get("reason", "unknown")
             logger.debug(
-                f"添加账号复核探测: 手机号={normalized_phone}, "
+                f"添加账户复核探测: 手机号={normalized_phone}, "
                 f"状态={confirm_status}, 是否正常={confirm.get('ok')}, 原因={confirm_reason}"
             )
 
@@ -1732,8 +1732,8 @@ class AccountManager:
                 reason=reason,
             )
             logger.warning(
-                "托管会话受控重建失败，已标记离线并保留 session: "
-                "用户ID=%s, 手机号=%s, 原因=%s",
+                "托管会话重建失败，已标记离线: "
+                "用户=%s, 手机号=%s, 原因=%s",
                 user_id,
                 normalized_phone,
                 reason,
@@ -1869,7 +1869,7 @@ class AccountManager:
             f"状态={status}, 原因={reason}"
         )
         logger.info(
-            "托管操作预检查临时失败，保留客户端并交由 Telethon 自动重连: "
+            "托管操作预检查临时失败，交由 Telethon 重连: "
             "操作=%s, 手机号=%s, 原因=%s",
             action,
             normalized_phone,
@@ -1898,7 +1898,7 @@ class AccountManager:
         normalized_phone = AccountManager.normalize_phone(phone)
         if isinstance(error, FrozenMethodInvalidError):
             logger.warning(
-                "Telegram 冻结账号拒绝托管操作: 操作=%s, 手机号=%s",
+                "Telegram 冻结账户拒绝托管操作: 操作=%s, 手机号=%s",
                 action,
                 normalized_phone,
             )
@@ -1958,7 +1958,7 @@ class AccountManager:
                 f"手机号={normalized_phone}, 原因={reason}, 错误={error}"
             )
             logger.info(
-                "托管操作遇到临时连接错误，保留客户端并交由 Telethon 自动重连: "
+                "托管操作临时连接错误，交由 Telethon 重连: "
                 "操作=%s, 手机号=%s, 原因=%s",
                 action,
                 normalized_phone,
@@ -2155,7 +2155,7 @@ class AccountManager:
                 if not disconnected:
                     logger.warning(
                         f"清理临时登录状态时拒绝删除被占用的会话文件: "
-                        f"用户ID={user_id}, 手机号={normalized_phone}, 路径={session_path}"
+                        f"用户={user_id}, 手机号={normalized_phone}, 路径={session_path}"
                     )
                     return SessionCleanupResult(
                         ok=False,
@@ -2169,7 +2169,7 @@ class AccountManager:
                 if not remove_result.ok:
                     logger.warning(
                         f"清理临时登录状态时未能删除全部会话文件: "
-                        f"用户ID={user_id}, 手机号={normalized_phone}, 路径={session_path}"
+                        f"用户={user_id}, 手机号={normalized_phone}, 路径={session_path}"
                     )
                     return SessionCleanupResult(
                         ok=False,
@@ -2180,7 +2180,7 @@ class AccountManager:
 
             user_states.pop(user_id, None)
             logger.debug(
-                f"临时登录状态已清理: 用户ID={user_id}, "
+                f"临时登录状态已清理: 用户={user_id}, "
                 f"手机号={normalized_phone or '未知'}, 原因={reason}"
             )
             return SessionCleanupResult(
@@ -2328,7 +2328,7 @@ class AccountManager:
             AccountManager.remove_hosted_account_metadata(user_id, normalized_phone)
 
             logger.debug(
-                f"无效托管会话已清理: 用户ID={user_id}, "
+                f"无效托管会话已清理: 用户={user_id}, "
                 f"手机号={normalized_phone}, 原因={reason}"
             )
 
@@ -2350,7 +2350,7 @@ class AccountManager:
             acc_info = accounts.get(normalized_phone)
             if client is not None and acc_info is not None and acc_info.get("client") is not client:
                 logger.debug(
-                    f"忽略旧客户端的离线事件: 用户ID={user_id}, 手机号={normalized_phone}"
+                    f"忽略旧客户端的离线事件: 用户={user_id}, 手机号={normalized_phone}"
                 )
                 return False
 
@@ -2376,7 +2376,7 @@ class AccountManager:
                 acc_info["offline_at"] = time.time()
 
             message = (
-                f"托管会话已标记离线: 用户ID={user_id}, "
+                f"托管会话已标记离线: 用户={user_id}, "
                 f"手机号={normalized_phone}, 原因={reason}"
             )
             if was_offline:
@@ -2390,7 +2390,7 @@ class AccountManager:
         """Notify a user when a hosted account is offline after the recovery window."""
         bot = account_runtime.get_notify_bot()
         if not bot:
-            logger.info(f"通知机器人未绑定，跳过托管离线通知: 用户ID={user_id}, 手机号={phone}")
+            logger.info(f"通知机器人未绑定，跳过托管离线通知: 用户={user_id}, 手机号={phone}")
             return
 
         try:
@@ -2405,7 +2405,7 @@ class AccountManager:
         except account_runtime.NotifyBotFatalError:
             raise
         except Exception as e:
-            logger.warning(f"发送托管离线通知失败: 用户ID={user_id}, 手机号={phone}, 错误={e}")
+            logger.warning(f"发送托管离线通知失败: 用户={user_id}, 手机号={phone}, 错误={e}")
 
 
     @staticmethod
@@ -2437,7 +2437,7 @@ class AccountManager:
                     except account_runtime.NotifyBotFatalError:
                         raise
                     except Exception:
-                        logger.exception("发送获取验证码自动结束提醒失败: 用户ID=%s, 手机号=%s", user_id, phone)
+                        logger.exception("发送获取验证码自动结束提醒失败: 用户=%s, 手机号=%s", user_id, phone)
             except asyncio.CancelledError:
                 raise
             finally:
@@ -2568,7 +2568,7 @@ class AccountManager:
                     except account_runtime.NotifyBotFatalError:
                         raise
                     except Exception:
-                        logger.exception(f"发送获取验证码自动结束提醒失败: 用户ID={user_id}, 手机号={phone}")
+                        logger.exception(f"发送获取验证码自动结束提醒失败: 用户={user_id}, 手机号={phone}")
             except asyncio.CancelledError:
                 raise
             finally:
@@ -2728,7 +2728,7 @@ class AccountManager:
                             raise
                         except Exception:
                             logger.exception(
-                                f"发送反登录自动恢复通知失败: 用户ID={user_id}, 手机号={phone}"
+                                f"发送反登录自动恢复通知失败: 用户={user_id}, 手机号={phone}"
                             )
             except asyncio.CancelledError:
                 return
@@ -3381,7 +3381,7 @@ class AccountManager:
                     shutil.move(target_part, source_part)
                 elif target_exists and source_exists:
                     logger.critical(
-                        "转移恢复发现源和目标 Session 组件同时存在: %s, %s",
+                        "转让恢复发现源和目标 Session 组件同时存在: %s, %s",
                         transaction.get("id"),
                         os.path.basename(source_part),
                     )
@@ -3389,7 +3389,7 @@ class AccountManager:
 
             return True
         except Exception:
-            logger.exception("恢复账户转移文件失败: %s", transaction.get("id"))
+            logger.exception("恢复账户转让文件失败: 事务=%s", transaction.get("id"))
             return False
 
     @staticmethod
@@ -3427,7 +3427,7 @@ class AccountManager:
                     if target_exists and not source_exists:
                         payload["transactions"].pop(transaction_id, None)
                     else:
-                        logger.critical("已提交账户转移的文件状态不一致: %s", transaction_id)
+                        logger.critical("已提交账户转让的文件状态不一致: 事务=%s", transaction_id)
                         all_ok = False
                     continue
 
@@ -3436,7 +3436,7 @@ class AccountManager:
                 if state_ok:
                     payload["transactions"].pop(transaction_id, None)
                 else:
-                    logger.critical("账户转移启动恢复失败，事务已保留: %s", transaction_id)
+                    logger.critical("账户转让启动恢复失败，事务已保留: 事务=%s", transaction_id)
                     all_ok = False
             if not AccountManager._save_transfer_journal_locked(payload):
                 return False
@@ -3487,7 +3487,7 @@ class AccountManager:
                     ensure_selected=False,
                 )
             except Exception:
-                logger.exception("重新加载转移源账户失败")
+                logger.exception("重新加载转让源账户失败")
                 success = False
                 restored_phone = None
             if not success:
@@ -3498,7 +3498,7 @@ class AccountManager:
                 if not source_client.is_connected():
                     await source_client.connect()
             except Exception:
-                logger.exception("重新连接转移源账户失败")
+                logger.exception("重新连接转让源账户失败")
                 return False
         if not source_info:
             return False
@@ -3683,14 +3683,14 @@ class AccountManager:
                     failure_code = "journal_failed"
                     raise RuntimeError("failed to persist committed transfer stage")
             except Exception:
-                logger.exception("账户转移事务失败: %s", transaction["id"])
+                logger.exception("账户转让事务失败: 事务=%s", transaction["id"])
                 restored = await AccountManager._rollback_live_transfer(transaction, source_runtime, source_client)
                 if not restored:
                     return AccountTransferResult(False, "rollback_failed", "转让失败且自动恢复未完成，请立即联系管理员", phone, from_user_id, to_user_id)
                 return AccountTransferResult(False, failure_code, "账户转让失败，原账户已恢复", phone, from_user_id, to_user_id)
 
             if not AccountManager._remove_transfer_transaction(transaction["id"]):
-                logger.warning("已提交转移事务日志暂未清除，将在启动时确认: %s", transaction["id"])
+                logger.warning("已提交转让事务日志暂未清除，将在启动时确认: 事务=%s", transaction["id"])
 
         target_notified = False
         bot = account_runtime.get_notify_bot()
@@ -3744,9 +3744,9 @@ class AccountManager:
             return AccountManager.normalize_phone(f"+{raw_phone}"), "ok"
         except Exception as error:
             if AccountManager._is_uploaded_session_format_error(error):
-                logger.debug(f"上传会话文件格式无效 {session_path}: {error}")
+                logger.debug(f"上传会话文件格式无效: 路径={session_path}, 错误={error}")
                 return None, "invalid"
-            logger.warning(f"上传会话预校验失败 {session_path}: {error}")
+            logger.warning(f"上传会话预校验失败: 路径={session_path}, 错误={error}")
             return None, "error"
         finally:
             if probe_client:
@@ -3829,7 +3829,7 @@ class AccountManager:
                 raise RuntimeError(reason or "upload_install_failed")
             except Exception as error:
                 logger.warning(
-                    f"上传会话替换失败，准备恢复旧会话: 用户ID={user_id}, "
+                    f"上传会话替换失败，准备恢复旧会话: 用户={user_id}, "
                     f"手机号={normalized_phone}, 错误={error}"
                 )
                 if old_files_saved or not had_existing_files:
@@ -3840,7 +3840,7 @@ class AccountManager:
                         AccountManager._move_session_files(rollback_path, existing_path)
                     except Exception:
                         logger.exception(
-                            f"上传失败后恢复旧会话文件异常: 用户ID={user_id}, 手机号={normalized_phone}"
+                            f"上传失败后恢复旧会话文件异常: 用户={user_id}, 手机号={normalized_phone}"
                         )
                 if had_existing_files and any(
                     os.path.exists(path)
@@ -3860,7 +3860,7 @@ class AccountManager:
                                 restored_info["anti_login"] = existing_anti_login
                     except Exception:
                         logger.exception(
-                            f"上传失败后重新加载旧会话异常: 用户ID={user_id}, 手机号={normalized_phone}"
+                            f"上传失败后重新加载旧会话异常: 用户={user_id}, 手机号={normalized_phone}"
                         )
                 reason = "replace_failed_restored" if restored else "replace_failed"
                 return None, normalized_phone, False, reason
@@ -4058,14 +4058,14 @@ class AccountManager:
             return result if detailed else result[:3]
 
         except SessionRevokedError:
-            logger.warning(f"会话已撤销: {session_path}")
+            logger.warning(f"会话已撤销: 路径={session_path}")
             await AccountManager.backup_session_file(session_path, "revoked")
             result = (None, None, False, "revoked")
             return result if detailed else result[:3]
 
         except Exception as e:
             if AccountManager._is_uploaded_session_format_error(e):
-                logger.warning(f"会话文件格式无效 {session_path}: {str(e)}")
+                logger.warning(f"会话文件格式无效: 路径={session_path}, 错误={e}")
                 try:
                     if client and client.is_connected():
                         await AccountManager._safe_disconnect_client(client, f"invalid-format:{session_path}")
@@ -4081,7 +4081,7 @@ class AccountManager:
                 result = (None, None, False, "invalid")
                 return result if detailed else result[:3]
 
-            logger.error(f"创建客户端失败 {session_path}: {str(e)}")
+            logger.error(f"创建客户端失败: 路径={session_path}, 错误={e}")
             try:
                 if client and client.is_connected():
                     await AccountManager._safe_disconnect_client(client, f"create-failed:{session_path}")
@@ -4227,14 +4227,14 @@ class AccountManager:
                     backup_path = AccountManager._available_backup_path(backup_dir, backup_name)
 
                     shutil.copy2(p, backup_path)
-                    logger.info(f"会话文件已备份: {backup_path}")
+                    logger.info(f"会话文件已备份: 路径={backup_path}")
 
                     # 只删除原文件，不删除备份
                     os.remove(p)
                 return True
             return False
         except Exception as e:
-            logger.error(f"备份会话文件失败: {str(e)}")
+            logger.error(f"备份会话文件失败: {e}")
             return False
     
     @staticmethod
@@ -4353,7 +4353,7 @@ class AccountManager:
 
                 if sign_in_codes:
                     logger.debug(
-                        f"检测到 777000 登录码: {normalized_phone}, "
+                        f"检测到 777000 登录码: 手机号={normalized_phone}, "
                         f"验证码={code}, 来源={source}"
                     )
 
@@ -4377,7 +4377,7 @@ class AccountManager:
                             raise
                         except Exception:
                             logger.exception(
-                                f"推送验证码失败: 用户ID={uid}, 手机号={normalized_phone}"
+                                f"推送验证码失败: 用户={uid}, 手机号={normalized_phone}"
                             )
 
                 if not sign_in_codes or not AccountManager.is_anti_login_active(acc_info):
@@ -4389,7 +4389,7 @@ class AccountManager:
 
                 bot = account_runtime.get_notify_bot()
                 if not bot:
-                    logger.info(f"未绑定通知机器人，跳过异常登录提醒: {normalized_phone}")
+                    logger.info(f"未绑定通知机器人，跳过异常登录提醒: 手机号={normalized_phone}")
                     return "success" if invalidated else "failed"
 
                 if invalidated:
@@ -4406,7 +4406,7 @@ class AccountManager:
                 if await AccountManager._safe_send_bot_message(
                     bot, user_id, alert_text, context=context
                 ):
-                    logger.debug(f"📨 已通过机器人通知用户 user_id={user_id}")
+                    logger.debug(f"已通过机器人通知用户 用户={user_id}")
                 return result
             finally:
                 AccountManager._mark_login_message_processed(
@@ -4468,7 +4468,7 @@ class AccountManager:
         sender = getattr(client, "_sender", None)
         original_callback = getattr(sender, "_auto_reconnect_callback", None)
         if sender is None or not callable(original_callback):
-            logger.warning(f"无法安装重连补查回调: {phone}")
+            logger.warning(f"无法安装重连补查回调: 手机号={phone}")
             return False
 
         async def reconnect_callback():
@@ -4478,7 +4478,7 @@ class AccountManager:
                     client, phone, user_id, source="reconnect"
                 )
             except Exception:
-                logger.exception(f"重连后补查 777000 消息失败: {phone}")
+                logger.exception(f"重连后补查 777000 消息失败: 手机号={phone}")
 
         sender._auto_reconnect_callback = reconnect_callback
         client._login_reconnect_backfill_installed = True
@@ -4514,7 +4514,7 @@ class AccountManager:
     ):
         bot = account_runtime.get_notify_bot()
         if not bot:
-            logger.info(f"未绑定通知机器人，稍后重试新设备提醒: {phone}")
+            logger.info(f"未绑定通知机器人，稍后重试新设备提醒: 手机号={phone}")
             return None
         digits = AccountManager._digits_only(phone)
         buttons = [[
@@ -4545,7 +4545,7 @@ class AccountManager:
     ) -> bool:
         bot = account_runtime.get_notify_bot()
         if not bot:
-            logger.info(f"未绑定通知机器人，跳过新设备通知: {phone}")
+            logger.info(f"未绑定通知机器人，跳过新设备通知: 手机号={phone}")
             return False
         text = AccountManager._new_device_message(user_id, phone, details, suffix)
         for attempt in range(NEW_DEVICE_ACTION_ATTEMPTS):
@@ -4780,7 +4780,7 @@ class AccountManager:
                     source="new_authorization_event",
                 )
             except Exception:
-                logger.exception(f"处理新设备授权事件失败: {phone}")
+                logger.exception(f"处理新设备授权事件失败: 手机号={phone}")
 
         client._new_authorization_handler_registered = True
         return True
@@ -4800,7 +4800,7 @@ class AccountManager:
                     now = time.time()
                     last_logged_at = getattr(client, "_login_handler_confirm_logged_at", 0)
                     if now - last_logged_at >= MONITOR_CONFIRM_LOG_INTERVAL_SECONDS:
-                        logger.debug(f"监控处理器已注册: {phone}")
+                        logger.debug(f"监控处理器已注册: 手机号={phone}")
                         client._login_handler_confirm_logged_at = now
                 return True
 
@@ -4814,7 +4814,7 @@ class AccountManager:
                 except account_runtime.NotifyBotFatalError:
                     raise
                 except Exception:
-                    logger.exception(f"处理登录通知异常 {phone}")
+                    logger.exception(f"处理登录通知异常: 手机号={phone}")
 
 
             # 标记为已注册
@@ -4824,11 +4824,11 @@ class AccountManager:
                 await AccountManager._backfill_login_messages(
                     client, phone, user_id, source="startup"
                 )
-            logger.info(f"✅ 已设置登录监控: {phone}")
+            logger.info(f"已设置登录监控: 手机号={phone}")
             return True
             
         except Exception as e:
-            logger.error(f"设置监控失败 {phone}: {str(e)}")
+            logger.error(f"设置监控失败: 手机号={phone}, 错误={e}")
             return False
 
     @staticmethod
@@ -4851,7 +4851,7 @@ class AccountManager:
             if not invalid_reason:
                 logger.warning(
                     f"Telethon 连接已终止: 手机号={phone}, "
-                    f"错误类型={reason}, 错误={str(error)[:120]}"
+                    f"类型={reason}, 错误={str(error)[:120]}"
                 )
         else:
             logger.warning(f"Telethon 连接已终止: 手机号={phone}")
@@ -4859,7 +4859,7 @@ class AccountManager:
         if invalid_reason:
             logger.debug(
                 f"Telethon 已确认托管 Session 失效: 手机号={phone}, "
-                f"错误类型={reason}, 处理原因={invalid_reason}"
+                f"类型={reason}, 处理原因={invalid_reason}"
             )
             await AccountManager.cleanup_invalid_hosted_session(
                 user_id=user_id,
@@ -4875,7 +4875,7 @@ class AccountManager:
                 user_id, phone, client, reason
             )
             logger.info(
-                "托管客户端单次恢复结束: 用户ID=%s, 手机号=%s, 结果=%s",
+                "托管客户端单次恢复结束: 用户=%s, 手机号=%s, 结果=%s",
                 user_id,
                 AccountManager.normalize_phone(phone),
                 recovery,
@@ -4936,8 +4936,8 @@ class AccountManager:
             return result
 
         logger.warning(
-            "检测到可恢复的托管会话异常，执行一次客户端重建: "
-            "用户ID=%s, 手机号=%s, 原因=%s",
+            "托管会话异常可恢复，重建客户端: "
+            "用户=%s, 手机号=%s, 原因=%s",
             user_id,
             normalized_phone,
             reason,
@@ -4966,14 +4966,14 @@ class AccountManager:
             )
             if success:
                 logger.info(
-                    "托管客户端单次恢复成功: 用户ID=%s, 手机号=%s",
+                    "托管客户端单次恢复成功: 用户=%s, 手机号=%s",
                     user_id,
                     normalized_phone,
                 )
                 return "recovered"
             result = "rebuild_failed"
             logger.warning(
-                "托管客户端单次恢复失败: 用户ID=%s, 手机号=%s, 原因=%s",
+                "托管客户端单次恢复失败: 用户=%s, 手机号=%s, 原因=%s",
                 user_id,
                 normalized_phone,
                 failure_reason,
@@ -5017,7 +5017,7 @@ class AccountManager:
                     )
                     return render_login_code_rate_limit(rate_limit)
                 sent_code = await client.send_code_request(normalized_phone)
-                logger.debug(f"验证码已发送到 {normalized_phone}, 类型: {sent_code.type}")
+                logger.debug(f"验证码已发送: 手机号={normalized_phone}, 类型={sent_code.type}")
 
                 # 只有 Telegram 接受验证码请求后，才进入等待验证码状态。
                 user_states[user_id] = {
@@ -5048,12 +5048,12 @@ class AccountManager:
                     )
                 return t("auth.rate_limited", seconds=wait_time)
             except Exception as e:
-                logger.error(f"发送验证码失败 {phone}: {str(e)}")
+                logger.error(f"发送验证码失败: 手机号={phone}, 错误={e}")
                 await AccountManager.cleanup_incomplete_account(user_id, normalized_phone, client)
                 return t("auth.send_code_failed", error=str(e))
                 
         except Exception as e:
-            logger.error(f"认证过程异常 {phone}: {str(e)}")
+            logger.error(f"认证过程异常: 手机号={phone}, 错误={e}")
             await AccountManager.cleanup_incomplete_account(user_id, normalized_phone, client)
             return t("auth.failed", error=str(e))
 
@@ -5092,7 +5092,7 @@ class AccountManager:
             return reminder_system.render_schedule_result(result)
         except Exception as error:
             logger.warning(
-                "手动检测登录限制失败: 用户ID=%s, 手机号=%s, 错误类型=%s",
+                "手动检测登录限制失败: 用户=%s, 手机号=%s, 类型=%s",
                 user_id,
                 normalized_phone,
                 type(error).__name__,
@@ -5181,7 +5181,7 @@ class AccountManager:
             return t("auth.operation_rate_limited", seconds=wait_time)
             
         except Exception as e:
-            logger.error(f"验证码处理异常 {phone}: {str(e)}")
+            logger.error(f"验证码处理异常: 手机号={phone}, 错误={e}")
             remaining = state['max_code_attempts'] - state['code_attempts']
             if remaining > 0:
                 return t("auth.login_failed_retry",
@@ -5274,7 +5274,7 @@ class AccountManager:
 
         session_files = [f for f in os.listdir(SESSIONS_DIR) if f.endswith('.session') and 'backup' not in f]
         concurrency = getattr(config, "SESSION_LOAD_CONCURRENCY", 6)
-        logger.info(f"找到 {len(session_files)} 个会话文件，开始加载（并发={concurrency}）...")
+        logger.info(f"找到 {len(session_files)} 个会话文件，开始加载（并发={concurrency}）")
 
         sem = asyncio.Semaphore(concurrency)
 
@@ -5297,12 +5297,12 @@ class AccountManager:
                         status = await AccountManager.check_inaccessible_session_file(session_path, phone_hint)
                         if AccountManager._is_fatal_session_status(status) or status == "invalid":
                             logger.warning(
-                                f"用户 {user_id} 无权限且会话无效，已清理: {session_file}, 状态={status}"
+                                f"用户={user_id} 无权限且会话无效，已清理: 路径={session_file}, 状态={status}"
                             )
                             await AccountManager.backup_session_file(session_path, status or "invalid")
                         else:
                             logger.info(
-                                f"用户 {user_id} 无权限，会话状态={status}，跳过加载: {session_file}"
+                                f"用户={user_id} 无权限，会话状态={status}，跳过加载: 路径={session_file}"
                             )
                         return
 
@@ -5315,9 +5315,9 @@ class AccountManager:
                     )
 
                     if success:
-                        logger.info(f"✅ 加载成功: {phone}")
+                        logger.info(f"加载成功: 手机号={phone}")
                     else:
-                        logger.warning(f"❌ 会话加载失败: {session_file}, 原因={failure_reason}")
+                        logger.warning(f"会话加载失败: 路径={session_file}, 原因={failure_reason}")
                         if AccountManager._is_fatal_session_status(failure_reason):
                             await AccountManager.notify_session_unavailable(user_id, phone_hint, source="startup")
                             await AccountManager.backup_session_file(session_path, "invalid")
@@ -5330,7 +5330,7 @@ class AccountManager:
                             )
 
                 except Exception as e:
-                    logger.error(f"加载失败 {session_file}: {str(e)}")
+                    logger.error(f"加载失败: 路径={session_file}, 错误={e}")
 
         tasks = [asyncio.create_task(_load_one(f)) for f in session_files]
         if tasks:
@@ -5339,10 +5339,10 @@ class AccountManager:
     @staticmethod
     async def reload_user_accounts_detail(user_id: int, source: str = "manual_reload") -> Dict[str, int]:
         """重新加载指定用户下的所有账户（并发 + 限流）"""
-        logger.info(f"开始重新加载用户 {user_id} 的账户...")
+        logger.info(f"开始重新加载用户={user_id} 的账户")
 
         if user_id not in user_accounts:
-            logger.info(f"用户 {user_id} 无账户可加载")
+            logger.info(f"用户={user_id} 无账户可加载")
             return {"total": 0, "success": 0, "failed": 0}
 
         # 并发数：复用你现有配置名，或单独加一个 RELOAD_CONCURRENCY
@@ -5355,7 +5355,7 @@ class AccountManager:
         items = list(user_accounts[user_id].items())
         total_count = len(items)
 
-        logger.debug(f"当前用户 {user_id} 共有 {total_count} 个账户，开始重载（并发={concurrency}）...")
+        logger.debug(f"当前用户={user_id} 共有 {total_count} 个账户，开始重载（并发={concurrency}）")
 
         success_count = 0
         fail_count = 0
@@ -5382,7 +5382,7 @@ class AccountManager:
                     preserved_freeze_info = acc_info.get('freeze_info')
                     check_freeze = source == "manual_reload"
 
-                    logger.debug(f"重新加载账户: {display_phone}")
+                    logger.debug(f"重新加载账户: 手机号={display_phone}")
 
                     task_key = f"{user_id}_{phone}"
                     async with AccountManager._get_session_lock(task_key):
@@ -5439,13 +5439,13 @@ class AccountManager:
                         else:
                             alive_count += 1
                         details.append({"phone": display_phone, "status": "success", "reason": health_status})
-                        logger.debug(f"✅ 重载成功: {display_phone}")
+                        logger.debug(f"重载成功: 手机号={display_phone}")
                     else:
                         fail_count += 1
                         dead_count += 1
                         fail_reasons[failure_reason] = fail_reasons.get(failure_reason, 0) + 1
                         details.append({"phone": display_phone, "status": "failed", "reason": failure_reason})
-                        logger.warning(f"❌ 重载失败: {display_phone}, 原因={failure_reason}")
+                        logger.warning(f"重载失败: 手机号={display_phone}, 原因={failure_reason}")
 
                         if AccountManager._is_fatal_session_status(failure_reason):
                             await AccountManager.notify_session_unavailable(user_id, display_phone, source=source)
@@ -5473,20 +5473,20 @@ class AccountManager:
                                         failure_reason or "reload_failed",
                                     )
                             except Exception as restore_error:
-                                logger.warning(f"恢复旧账户连接监听失败 {display_phone}: {restore_error}")
+                                logger.warning(f"恢复旧账户连接监听失败: 手机号={display_phone}, 错误={restore_error}")
 
                 except Exception as e:
                     fail_count += 1
                     dead_count += 1
                     fail_reasons["exception"] = fail_reasons.get("exception", 0) + 1
                     details.append({"phone": display_phone, "status": "failed", "reason": "exception"})
-                    logger.error(f"重载账户异常 {display_phone}: {str(e)}")
+                    logger.error(f"重载账户异常: 手机号={display_phone}, 错误={e}")
 
         tasks = [asyncio.create_task(_reload_one(phone, acc_info)) for phone, acc_info in items]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-        logger.info(f"✅ 重载完成: 成功 {success_count}, 失败 {fail_count}, 总计 {total_count}")
+        logger.info(f"重载完成: 成功 {success_count}, 失败 {fail_count}, 总计 {total_count}")
         return {
             "total": total_count,
             "success": success_count,

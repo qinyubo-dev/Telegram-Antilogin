@@ -433,7 +433,7 @@ class LoginUnlockReminderSystem:
                 self._changed.set()
             else:
                 logger.error(
-                    "登录解限提醒发送结果持久化失败: 用户ID=%s, 手机号键=%s",
+                    "登录解限提醒发送结果持久化失败: 用户=%s, 手机号键=%s",
                     user_id,
                     key,
                 )

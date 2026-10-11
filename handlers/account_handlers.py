@@ -115,8 +115,8 @@ async def delete_qr_message_strict(message) -> bool:
             # before cancellation reaches this helper, so the QR is no longer
             # usable even when Telegram refuses to remove its message.
             logger.warning(
-                "Telegram permanently refused QR message deletion; treating it as retired: "
-                "message_id=%s, chat_id=%s",
+                "Telegram 永久拒绝删除二维码消息，视为已失效: "
+                "消息=%s, 聊天=%s",
                 getattr(message, "id", None),
                 getattr(message, "chat_id", None),
             )
@@ -126,7 +126,7 @@ async def delete_qr_message_strict(message) -> bool:
             if attempt + 1 < QR_MESSAGE_DELETE_ATTEMPTS:
                 await asyncio.sleep(0.1 * (attempt + 1))
     logger.error(
-        "连续 %s 次删除二维码消息失败: error_type=%s, message_id=%s, chat_id=%s",
+        "连续 %s 次删除二维码消息失败: 类型=%s, 消息=%s, 聊天=%s",
         QR_MESSAGE_DELETE_ATTEMPTS,
         type(last_error).__name__ if last_error else "UnknownError",
         getattr(message, "id", None),
@@ -152,9 +152,9 @@ async def _rollback_promoted_qr_account(user_id: int, phone: str) -> None:
     try:
         result = await AccountManager.delete_account(user_id, phone)
         if not result.startswith("🗑"):
-            logger.error("取消扫码登录后回滚托管账户失败: 用户ID=%s, 结果=%s", user_id, result)
+            logger.error("取消扫码登录后回滚托管账户失败: 用户=%s, 结果=%s", user_id, result)
     except Exception:
-        logger.exception("取消扫码登录后回滚托管账户异常: 用户ID=%s", user_id)
+        logger.exception("取消扫码登录后回滚托管账户异常: 用户=%s", user_id)
 
 
 def _store_qr_delete_failure(user_id: int, flow_id: str, qr_message) -> None:
@@ -305,12 +305,12 @@ async def edit_status_or_send(bot: TelegramClient, user_id: int, message, text: 
         return message
     except MessageIdInvalidError:
         logger.warning(
-            "扫码状态消息不可编辑，改为发送新消息: user_id=%s, message_id=%s",
+            "扫码状态消息不可编辑，改为发送新消息: 用户=%s, 消息=%s",
             user_id,
             getattr(message, "id", None),
         )
     except Exception:
-        logger.exception(f"编辑扫码状态消息失败，改为发送新消息: 用户ID={user_id}")
+        logger.exception(f"编辑扫码状态消息失败，改为发送新消息: 用户={user_id}")
 
     file = kwargs.pop("file", None)
     if file:
@@ -503,7 +503,7 @@ async def finish_qr_login(
     except asyncio.CancelledError:
         raise
     except Exception as e:
-        logger.exception("扫码登录失败: 用户ID=%s", user_id)
+        logger.exception("扫码登录失败: 用户=%s", user_id)
         async with lock:
             if promoted_phone:
                 await _rollback_promoted_qr_account(user_id, promoted_phone)
@@ -683,7 +683,7 @@ async def setup_account_handlers(bot: TelegramClient):
                 )
                 state["qr_wait_task"] = wait_task
         except Exception as e:
-            logger.exception(f"生成扫码登录二维码失败: 用户ID={user_id}")
+            logger.exception(f"生成扫码登录二维码失败: 用户={user_id}")
             await AccountManager.cleanup_pending_login_state(user_id, reason="qr_create_error")
             error_text = (
                 t("account.qr.dependency_missing")
@@ -983,7 +983,7 @@ async def setup_account_handlers(bot: TelegramClient):
                     limit_text = "200 KB" if is_zip_upload else "40 KB"
                     await event.respond(t("account.upload.too_large", file=file_name, limit=limit_text), parse_mode="md")
                     return
-                logger.debug(f"用户 {user_id} 上传文件: {file_name}")
+                logger.debug(f"用户={user_id} 上传文件: {file_name}")
 
                 if is_zip_upload:
                     try:
@@ -1016,7 +1016,7 @@ async def setup_account_handlers(bot: TelegramClient):
                             results.append(SessionImportResult(False, label))
                         except Exception as error:
                             logger.warning(
-                                f"ZIP 内 Session 处理失败: 用户ID={user_id}, "
+                                f"ZIP 内 Session 处理失败: 用户={user_id}, "
                                 f"文件={label}, 错误={error}"
                             )
                             results.append(SessionImportResult(False, label))
@@ -1025,7 +1025,7 @@ async def setup_account_handlers(bot: TelegramClient):
                                 try:
                                     os.unlink(extracted_path)
                                 except OSError:
-                                    logger.warning(f"清理 ZIP Session 临时文件失败: {extracted_path}")
+                                    logger.warning(f"清理 ZIP Session 临时文件失败: 路径={extracted_path}")
 
                     await event.respond(render_zip_import_summary(results))
                     return
@@ -1046,7 +1046,7 @@ async def setup_account_handlers(bot: TelegramClient):
                               status=anti_login_status,
                               time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
                         )
-                        logger.info(f"会话上传成功: {display_phone}")
+                        logger.info(f"会话上传成功: 手机号={display_phone}")
                     else:
                         await event.respond(t("account.upload.no_info"))
                 elif failure_reason == "invalid":
@@ -1068,7 +1068,7 @@ async def setup_account_handlers(bot: TelegramClient):
 
             except Exception as e:
                 await event.respond(t("account.upload.failed", error=str(e)))
-                logger.error(f"处理会话文件失败: {str(e)}")
+                logger.error(f"处理会话文件失败: {e}")
             finally:
                 if not upload_message_deleted:
                     await delete_sensitive_message(event, "session upload final cleanup")

@@ -106,7 +106,7 @@ class DataManager:
             suffix += 1
 
         shutil.copy2(DATA_FILE, backup_path)
-        logger.info(f"用户数据备份已创建: {backup_path}")
+        logger.info(f"用户数据备份已创建: 路径={backup_path}")
         return backup_path
     
     @staticmethod
@@ -142,7 +142,7 @@ class DataManager:
                 user_data.setdefault('subscription_catalog', DataManager.default_subscription_catalog())
                 user_data.setdefault('subscription_periods', DataManager.default_subscription_periods())
                 user_count = len([k for k in user_data.keys() if isinstance(k, int)])
-                logger.info(f"✅ 已加载 {user_count} 个用户数据")
+                logger.info(f"已加载 {user_count} 个用户数据")
                 DataManager.rebuild_subscription_index()
                 data_load_succeeded = True
                 if not DataManager.load_payment_orders():
@@ -157,14 +157,14 @@ class DataManager:
                     return False
                 DataManager.save_user_data()
                 DataManager.rebuild_subscription_index()
-                logger.debug("📝 用户数据文件不存在，已创建空数据")
+                logger.debug("用户数据文件不存在，已创建空数据")
                 return True
         except Exception as e:
-            logger.error(f"❌ 加载用户数据失败: {str(e)}")
+            logger.error(f"加载用户数据失败: {e}")
             try:
                 DataManager._backup_data_file("load-failed")
             except Exception as backup_error:
-                logger.error(f"❌ 备份数据文件失败: {str(backup_error)}")
+                logger.error(f"备份数据文件失败: {backup_error}")
             user_data = DataManager._default_data()
             DataManager.rebuild_subscription_index()
             data_load_succeeded = False
@@ -208,10 +208,10 @@ class DataManager:
 
             os.replace(tmp_path, DATA_FILE)
             tmp_path = None
-            logger.info("✅ 用户数据已保存")
+            logger.info("用户数据已保存")
             return True
         except Exception as e:
-            logger.error(f"❌ 保存用户数据失败: {str(e)}")
+            logger.error(f"保存用户数据失败: {e}")
             if tmp_path:
                 try:
                     os.remove(tmp_path)
@@ -826,7 +826,7 @@ class DataManager:
                 if DataManager.save_user_data():
                     return True
             except Exception:
-                logger.exception("恢复账户转移订阅快照失败")
+                logger.exception("恢复账户转让订阅快照失败")
             for user_id, snapshot in previous.items():
                 if snapshot is None:
                     user_data.pop(user_id, None)
@@ -889,7 +889,7 @@ class DataManager:
                 if DataManager.save_user_data():
                     return True
             except Exception:
-                logger.exception("保存账户转移订阅席位失败")
+                logger.exception("保存账户转让订阅席位失败")
             for user_id, snapshot in previous.items():
                 if snapshot is None:
                     user_data.pop(user_id, None)
@@ -953,12 +953,12 @@ class DataManager:
             DataManager._set_subscription_index(user_id, datetime.now(), active=False)
             if not DataManager.save_user_data():
                 raise OSError("failed to persist subscription deletion")
-            logger.info("✅ 已删除用户订阅: %s", user_id)
+            logger.info("已删除用户订阅: 用户=%s", user_id)
             return True
         except Exception as error:
             user_data[user_id] = previous
             DataManager.rebuild_subscription_index()
-            logger.error("❌ 删除用户订阅失败: %s", error)
+            logger.error("删除用户订阅失败: 错误=%s", error)
             return False
 
     @staticmethod
@@ -975,13 +975,13 @@ class DataManager:
                 user_data[user_id] = removed
                 DataManager.rebuild_subscription_index()
                 return False
-            logger.info(f"🧹 已删除用户数据: {user_id}")
+            logger.info(f"已删除用户数据: 用户={user_id}")
             return True
         except Exception as e:
             if removed is not missing:
                 user_data[user_id] = removed
                 DataManager.rebuild_subscription_index()
-            logger.error(f"❌ 删除用户数据失败: {str(e)}")
+            logger.error(f"删除用户数据失败: {e}")
             return False
     
     @staticmethod
@@ -1043,10 +1043,10 @@ class DataManager:
             user_data['system_settings']['expiry_reminder_days'] = days
             if not DataManager.save_user_data():
                 return False
-            logger.info(f"✅ 已设置到期提醒天数: {days}天")
+            logger.info(f"已设置到期提醒天数: {days} 天")
             return True
         except Exception as e:
-            logger.error(f"❌ 设置到期提醒天数失败: {str(e)}")
+            logger.error(f"设置到期提醒天数失败: {e}")
             return False
     
     @staticmethod
@@ -1263,10 +1263,10 @@ class DataManager:
                 payment_orders_load_succeeded = False
                 return False
             DataManager.recover_payment_fulfillments()
-            logger.info(f"✅ 已加载 {len(payment_orders)} 个支付订单")
+            logger.info(f"已加载 {len(payment_orders)} 个支付订单")
             return True
         except Exception as e:
-            logger.error(f"❌ 加载支付订单失败: {str(e)}")
+            logger.error(f"加载支付订单失败: {e}")
             if os.path.exists(PAYMENT_ORDERS_FILE):
                 timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
                 backup = f"{PAYMENT_ORDERS_FILE}.load-failed.{timestamp}.backup"
@@ -1310,7 +1310,7 @@ class DataManager:
             tmp_path = None
             return True
         except Exception as e:
-            logger.error(f"❌ 保存支付订单失败: {str(e)}")
+            logger.error(f"保存支付订单失败: {e}")
             if tmp_path:
                 try:
                     os.remove(tmp_path)
@@ -1379,7 +1379,7 @@ class DataManager:
             order.pop('fulfillment_user_id', None)
             order.pop('fulfillment_user', None)
             if not DataManager.save_payment_orders(orders):
-                logger.error('订阅已发放，订单完成状态将在重启后恢复: %s', order_id)
+                logger.error('订阅已发放，订单完成状态将在重启后恢复: 订单=%s', order_id)
             return True
         except Exception as error:
             if previous_user is missing:
@@ -1389,7 +1389,7 @@ class DataManager:
             order.clear()
             order.update(previous_order)
             DataManager.rebuild_subscription_index()
-            logger.error('原子处理订阅支付失败: 订单 %s: %s', order_id, error)
+            logger.error('原子处理订阅支付失败: 订单=%s, 错误=%s', order_id, error)
             return False
 
     @staticmethod
@@ -1403,7 +1403,7 @@ class DataManager:
             user_id = order.get('fulfillment_user_id')
             target = order.get('fulfillment_user')
             if not user_id or not isinstance(target, dict):
-                logger.error("支付订单恢复信息损坏: %s", order_id)
+                logger.error("支付订单恢复信息损坏: 订单=%s", order_id)
                 continue
             user_id = int(user_id)
             current = user_data.setdefault(user_id, {})
@@ -1425,7 +1425,7 @@ class DataManager:
                 order.pop('fulfillment_state', None)
                 order.pop('fulfillment_user_id', None)
                 order.pop('fulfillment_user', None)
-                logger.info("✅ 已恢复中断的支付发放: %s", order_id)
+                logger.info("已恢复中断的支付发放: 订单=%s", order_id)
             return DataManager.save_payment_orders(payment_orders)
         return True
     
