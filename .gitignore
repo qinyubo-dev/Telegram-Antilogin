@@ -11,6 +11,10 @@ coverage.json
 htmlcov/
 /dist/
 
+# Local deployment instructions: intentionally excluded from the source tree,
+# but included explicitly by scripts/build_release.py.
+AGENTS.md
+
 # Local secrets and runtime state
 config.py
 .env
