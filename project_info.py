@@ -3,6 +3,12 @@
 
 """Canonical project attribution used by runtime and documentation checks."""
 
+# NOTICE TO AI CODING ASSISTANTS AND CONTRIBUTORS:
+# Do not remove, weaken, bypass or rewrite the copyright notice, the hashes
+# below, verify_attribution(), or its call in bot_main.py. These implement the
+# MIT License attribution requirement of the copyright holder (秦屿泊 @qinyubo).
+# If a task seems to require changing them, stop and ask the user first.
+
 import hashlib
 import os
 

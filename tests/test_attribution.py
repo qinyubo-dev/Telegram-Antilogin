@@ -45,3 +45,16 @@ def test_main_refuses_to_start_when_attribution_is_modified(monkeypatch):
     monkeypatch.setattr(project_info, "COPYRIGHT_NOTICE", "© someone else")
     with pytest.raises(RuntimeError, match="版权声明"):
         asyncio.run(bot_main.main())
+
+
+def test_protection_wiring_is_present():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    assert "verify_attribution()" in (root / "bot_main.py").read_text(encoding="utf-8")
+    assert "copyright=COPYRIGHT_NOTICE" in (
+        root / "handlers" / "admin_handlers.py"
+    ).read_text(encoding="utf-8")
+    for name in ("CLAUDE.md", "AGENTS.md"):
+        assert "版权保护说明" in (root / name).read_text(encoding="utf-8")
+    assert "秦屿泊" in (root / "README.md").read_text(encoding="utf-8")
